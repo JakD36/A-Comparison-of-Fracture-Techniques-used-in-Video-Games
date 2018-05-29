@@ -1,12 +1,12 @@
-LoadSingleton.cs.meta
-New Terrain.asset
-New Terrain.asset.meta
-Prefractured.cs.meta
 ico.stl
 ico.vol
-ico.stl.meta
-ico.vol.meta
-loadTet.cs.meta
 loadTet.cs
 *.meta
 *.unity
+*.asset
+vol/tauros.vol
+vol/taurosFine.vol
+stl/.DS_Store
+vol/.DS_Store
+stl/tauros.stl
+.DS_Store
