@@ -183,7 +183,12 @@ public class Prefractured : MonoBehaviour
 				frag.transform.position = transform.position;
 				frag.transform.rotation = transform.rotation; // Needs the appropriate rotation as well
 				frag.GetComponent<Rigidbody>().angularVelocity = GetComponent<Rigidbody>().angularVelocity;
+				
 				frag.GetComponent<Rigidbody>().velocity = GetComponent<Rigidbody>().velocity;
+				// Going to test varying the speed by the number of elements as E = 1/2mv^2 should be consistent before and after collision!
+				// for now just going to split speed by elements 
+				// frag.GetComponent<Rigidbody>().velocity = GetComponent<Rigidbody>().velocity/elements.ToArray().Length;
+				
 				frag.GetComponent<Rigidbody>().mass = GetComponent<Rigidbody>().mass/elements.ToArray().Length; // Will use the average mass for each fragment!
 				/*
 				It may be required to alter the vertices so that they are centre around their own origin, 
