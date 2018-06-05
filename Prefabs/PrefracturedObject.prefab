@@ -125,6 +125,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7e4a989459c34d5bab0573c0072bd4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  useMeshCollider: 0
-  meshFile: ico.vol
-  breakForce: 0
+  useSphereCollider: 0
+  meshFile: vol/ico.vol
+  breakForce: 800

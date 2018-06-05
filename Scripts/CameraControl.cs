@@ -13,7 +13,6 @@ public class CameraControl : MonoBehaviour {
 	public float angle = new float();
 	public float radius = new float();
 
-	public float force;
 	
 	
 	
