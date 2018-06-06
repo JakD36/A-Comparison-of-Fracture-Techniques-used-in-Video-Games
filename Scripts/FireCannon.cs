@@ -16,7 +16,6 @@ public class FireCannon : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
-		RaycastHit hit;
 		if(Input.GetMouseButtonDown(0)){
 			GameObject cannonBall = (GameObject)Instantiate<GameObject>(CannonBall);
 			cannonBall.transform.position = transform.position;

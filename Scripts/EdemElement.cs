@@ -13,39 +13,65 @@ public class EdemElement: MonoBehaviour{
 
     private Vector3 poreForce;
 
+    public float normalContactStiffness = 1f;
+    public float normalContanctDampening = 1f; 
+    public float tangentialContactDampening = 1f;
+
+    private bool added;
     void start(){
         poreForce = new Vector3();
     }
 
-    void Update(){
+    // void OnTriggerStay(Collider collider){
+    //     // (3) Move elements by contact forces 
+	// 	Vector3 normalVector = (transform.position - collider.gameObject.transform.position); // Vector from other to this 
         
-        // (1) Calculate external forces
+    //     EdemElement otherEdemScript = collider.gameObject.GetComponent<EdemElement>();
+    //     if(otherEdemScript != null){ // If it is another edemElement!
+            
+    //         float penetrationDistance = (radius + otherEdemScript.radius) - normalVector.magnitude; // Calc how much the two spheres have overlapped
+            
+    //         if( penetrationDistance > 0 ){ // The two elements have collided! 
+    //         // Calculate the collision force!
+                
+    //             Vector3 relativeSpeed = collider.gameObject.GetComponent<Rigidbody>().velocity - GetComponent<Rigidbody>().velocity;
+                
+    //             Vector3 normalForce = normalContactStiffness * penetrationDistance * normalVector.normalized + Vector3.Dot(normalVector.normalized,relativeSpeed) * normalVector.normalized; 
+                
+    //             Vector3 tangentialForce = -tangentialContactDampening * (relativeSpeed - Vector3.Dot(normalVector.normalized,relativeSpeed) * normalVector.normalized);
 
-        // (2) Move elements by external forces
+    //             Vector3 contactForce = normalForce + tangentialForce;
+    //             GetComponent<Rigidbody>().AddForce(contactForce,ForceMode.Impulse);
+    //         }
+    //     }else{
+    //         Vector3 closestPoint = collider.ClosestPoint(gameObject.transform.position);
+    //         if ( (closestPoint - gameObject.transform.position).magnitude < radius){
+    //             float penetrationDistance = (radius - (closestPoint - gameObject.transform.position).magnitude);
+    //             Vector3 otherVel;
+    //             if(collider.gameObject.GetComponent<Rigidbody>()!=null){
+    //                 otherVel = collider.gameObject.GetComponent<Rigidbody>().velocity;
+    //             }
+    //             else{
+    //                 otherVel = new Vector3();
+    //             }
+    //             Vector3 relativeSpeed =  - GetComponent<Rigidbody>().velocity;
+    //             Vector3 normalForce = normalContactStiffness * penetrationDistance * normalVector.normalized + Vector3.Dot(normalVector.normalized,relativeSpeed) * normalVector.normalized; 
+                
+    //             Vector3 tangentialForce = tangentialContactDampening * (relativeSpeed - Vector3.Dot(normalVector.normalized,relativeSpeed) * normalVector.normalized);
 
-        // (3) Move elements by contact force
+    //             Vector3 contactForce = normalForce + tangentialForce;
+    //             GetComponent<Rigidbody>().AddForce(contactForce,ForceMode.Impulse);
+    //         }
+    //     }
+    // }
 
-        // (4) Move elements by pore spring
-
-        // (5) Perform collision detection and response with other EDEM objects
-
-        // (6) Perform collision detection and response with polygonal objects for the floor
-        
-    }
-
-    void FixedUpdate(){
-        float mass = GetComponent<Rigidbody>().mass;
-        Vector3 accel = poreForce/mass;
-        poreForce = new Vector3();
-        GetComponent<Rigidbody>().AddForce(accel,ForceMode.Acceleration);
-        
-        Vector3 grav = new Vector3(0.0f,-9.81f,0.0f);
-        GetComponent<Rigidbody>().AddForce(grav,ForceMode.Acceleration);
-    }
     public void addPoreForce(Vector3 force){
         poreForce += force;
     }
 
-    
-    
+    void FixedUpdate(){
+        GetComponent<Rigidbody>().AddForce(poreForce);
+        poreForce = new Vector3();
+    }    
+
 }
