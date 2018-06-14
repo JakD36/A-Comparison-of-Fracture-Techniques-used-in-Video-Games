@@ -6,13 +6,18 @@ using System.Text.RegularExpressions;
 
 
 public class PoreSpring{
-    public float stiffness;
-    public float restLength;
+    private float stiffness;
+    private float restLength;
     public GameObject[] elements;
 
-    public PoreSpring(){    
-        // stiffness = 150.0f;
+    private bool broken = false;
+
+    public PoreSpring(GameObject elementA, GameObject elementB, float stiffness){    
         elements = new GameObject[2];
+        elements[0] = elementA;
+        elements[1] = elementB;
+        this.restLength = (elementB.transform.position-elementA.transform.position).magnitude;
+        this.stiffness = stiffness;
     }
 
     public float getLengthRatio(){
@@ -30,5 +35,15 @@ public class PoreSpring{
         elements[0].GetComponent<EdemElement>().addPoreForce(forceOn0);
         elements[1].GetComponent<EdemElement>().addPoreForce(forceOn1);
     }
+
+    public void breakSpring(){
+        this.broken = true;
+    }
+
+    public bool isBroken(){
+        return this.broken;
+    }
+
+    
 
 }

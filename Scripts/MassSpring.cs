@@ -4,20 +4,25 @@ using UnityEngine;
 
 public class MassSpring : MonoBehaviour {
 
+	// Public Variables for inspector
+	[Tooltip("The name of the file, containing the volumetric mesh information (in .vol format).")]
+	public string meshFile; // The name of the file, containing the volumetric mesh information (in .vol format).
+	
+	[Tooltip("Number of vertices that ")]    
+	public int NumberOfCommonVertices;
+	public float MaxSpringLengthRatio;
 
-	public string meshFile; // The name of the file, containing the volumetric mesh information (in .vol format). Public so that it can be declared in Unity Inspector.
-    private List<Vector3> vertices; // The vertices of the volumetric mesh, loaded from LoadSingleton.
+	public float poreStiffness;
+	
+	// Prefabs
+	public GameObject EdemElementPrefab;
+	
+
+	// Private Variables
+	private List<Vector3> vertices; // The vertices of the volumetric mesh, loaded from LoadSingleton.
 	private List<Vector4> elements; // Each Vector4 stores the indices of the vertices that make up that tetrahedral element.
     
     private List<int> surfaceTriangles; // Each group of 3 ints in the List correspond to the indices of the surface triangles.
-
-	public GameObject EdemElement;
-
-
-	public float poreStiffness;
-	public float contactStiffness;
-	public float normalContactDampening;
-	public float tangentialContactDampening;
 
 	private List<GameObject> edemElements;
 	private List<PoreSpring> poreSprings;
@@ -47,26 +52,22 @@ public class MassSpring : MonoBehaviour {
 		
 		poreSprings = new List<PoreSpring>{};
 
+		float startTime = Time.realtimeSinceStartup;
+
 		createEdemElements();
 		createPoreSprings();
+
+		Debug.Log(
+			"Number of elements >> "+edemElements.ToArray().Length + // Number of tetrahedral elements
+			" Number of Springs >> "+poreSprings.ToArray().Length + // Number of springs 
+			" Time to create >> "+(Time.realtimeSinceStartup-startTime) // Time to create the elements and the springs
+			);
     }
 
 	/// <summary>
     /// FixedUpdate is called every fixed framerate frame.
 	/// <para>
-	/// Where we will be performing the steps required to simulate the motion of all the edem elements in the system
-	/// Following these steps
-	/// (1) Calculate external forces
-	///
-	/// (2) Move elements by external forces
-	///
-	/// (3) Move elements by contact force
-	///
-	/// (4) Move elements by pore spring
-	///
-	/// (5) Perform collision detection and response with other EDEM objects
-	///
-	/// (6) Perform collision detection and response with polygonal objects for the floor
+	/// Where we will be performing the calculations to get the spring force that holds the whole thing together
 	/// 
 	/// Using FixedUpdate instead of Update as 
 	/// "FixedUpdate should be used instead of Update when dealing with Rigidbody. For example when adding a force to a rigidbody, 
@@ -75,38 +76,21 @@ public class MassSpring : MonoBehaviour {
 	/// </summary>
     void FixedUpdate()
     { 
-        // (1) Calculate external forces - no need accelaration constant
-
-		// (2) Move elements by external forces
-		// foreach (var edem in edemElements){
-		// 	Transform transform = edem.transform;
-		// 	Rigidbody rigidbody = edem.GetComponent<Rigidbody>();
-		// 	Vector3 velocity = rigidbody.velocity;
-
-		// 	// External Force
-		// 	Vector3 grav = new Vector3(0.0f,-9.81f,0.0f); // -9.81 is the acceleration due to gravity!
-		// 	// New velocity is equal to old velocity + acceleration * time
-		// 	velocity += grav * Time.fixedDeltaTime;
-		// 	transform.Translate(velocity);
-		// }
-
-		
-		// // With all contact forces calculated now move each element
-		// foreach (var edem in edemElements){
-		// 	edem.GetComponent<EdemElement>().updateByContact();
-		// }
-
-		// (4) Move Elements by pore spring
+		// Loop through all the active springs check if they are broken or if the force needs to be calculated.
 		foreach (var poreSpring in poreSprings){
-			if(poreSpring.getLengthRatio()>3f){
-				poreSprings.Remove(poreSpring);
+			if(poreSpring.getLengthRatio()>MaxSpringLengthRatio){ // If the spring has extended past its max then remove it
+				poreSpring.breakSpring(); // record that its broken, so we can remove them from the list of active springs safely
 			}else{
-				poreSpring.update();
+				poreSpring.update(); // calculate the force acting on each attached element
 			}
 		}
-
-		// (6) Perform collision test with ground!
-
+		// Check for each of the broken springs, and remove them safely by going through list backwards
+		for(int n = poreSprings.Count-1; n >= 0; n--){
+			if(poreSprings[n].isBroken()){
+				poreSprings.Remove(poreSprings[n]);
+				Debug.Log("Removed Pore Spring");
+			}
+		}
     }
 
 
@@ -121,7 +105,7 @@ public class MassSpring : MonoBehaviour {
 	private void createEdemElements(){
 		// Now Instantiate each edem element!
 		foreach (Vector4 item in elements){
-			GameObject edem = (GameObject)Instantiate<GameObject>(EdemElement);
+			GameObject edem = (GameObject)Instantiate<GameObject>(EdemElementPrefab);
 			edemElements.Add(edem);
 			
 			edem.GetComponent<Rigidbody>().mass = GetComponent<Rigidbody>().mass/elements.ToArray().Length;
@@ -145,7 +129,14 @@ public class MassSpring : MonoBehaviour {
 				tetraVert[n]-=tetCentre; // Make sure the verts are centred to this object, not the whole system
 			}
 			
-			edem.transform.position = transform.position+tetCentre; 
+
+			// transform.rotation.eulerAngles
+			
+			edem.transform.position = transform.position+transform.rotation*(tetCentre); 
+			edem.transform.rotation = transform.rotation;
+
+
+
 			// The centre is now 0!
 			int[] triangles = { 0, 1, 2,   1, 3, 2,    0, 2, 3,   0, 3, 1 };
 				
@@ -162,10 +153,19 @@ public class MassSpring : MonoBehaviour {
 				}
 			}
 			
-			edem.GetComponent<EdemElement>().radius = minDistance;
-			// edem.GetComponent<SphereCollider>().radius = minDistance;
-			edem.GetComponent<MeshCollider>().sharedMesh = mesh;
-			edem.GetComponent<EdemElement>().elements = item;
+			SphereCollider sphereCollider = edem.GetComponent<SphereCollider>();
+			MeshCollider meshCollider = edem.GetComponent<MeshCollider>();
+			
+			if(sphereCollider.enabled){
+				sphereCollider.radius = minDistance;
+				sphereCollider.contactOffset = 0.001f;
+			}else{
+				if(!meshCollider.enabled){
+					meshCollider.enabled = true;
+				}
+				meshCollider.sharedMesh = mesh;
+			}
+			
 		}
 	}
 
@@ -190,22 +190,13 @@ public class MassSpring : MonoBehaviour {
 						}
 					}	
 				}
-				if(count == 3){
+				if(count >= NumberOfCommonVertices){
 					List<PoreSpring> springs = edemElements[n].GetComponent<EdemElement>().poreSprings;
-					PoreSpring newSpring = new PoreSpring();
-					newSpring.elements[0] = edemElements[n];
-					newSpring.elements[1] = edemElements[m];
-					newSpring.stiffness = this.poreStiffness;
-					if(edemElements[n].transform.position == edemElements[m].transform.position){
-						Debug.Log("Position matches at >> "+edemElements[n].transform.position.x +" "+edemElements[n].transform.position.y+ " "+edemElements[n].transform.position.z);
-					}
-					newSpring.restLength = (edemElements[n].transform.position - edemElements[m].transform.position).magnitude;
-					Debug.Log(newSpring.restLength);
+					PoreSpring newSpring = new PoreSpring(edemElements[n],edemElements[m],poreStiffness);
 					springs.Add(newSpring);
 					poreSprings.Add(newSpring);
 				}
 			}
 		}		
-		Debug.Log("Number of springs in mass spring system >>"+poreSprings.ToArray().Length);
 	}
 }

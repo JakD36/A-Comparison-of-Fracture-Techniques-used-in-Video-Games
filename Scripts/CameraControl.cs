@@ -23,22 +23,16 @@ public class CameraControl : MonoBehaviour {
 	/// Moves the camera to the start position!
 	/// </para>
 	/// </summary>
-	void Start () {
+	void Start() {
 		camX = radius*Mathf.Sin(Mathf.Deg2Rad*angle);
 		camZ = radius*Mathf.Cos(Mathf.Deg2Rad*angle);
+		this.transform.position = new Vector3(camX,camY,camZ);
+		if(target!=null){
+			this.transform.LookAt(target.transform);
+		}else{
+			this.transform.LookAt(new Vector3());
+		}
 	}
-
-	// void Update(){ // Fun code to apply forces to rigid bodies!
-	// 	RaycastHit hit;
-	// 	if(Input.GetMouseButtonDown(0)){
-	// 		Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-	// 		if (Physics.Raycast(ray, out hit,100)){
-	// 			if(hit.rigidbody){
-	// 				hit.rigidbody.AddForceAtPosition(force*ray.direction,hit.point);
-	// 			}
-	// 		}
-	// 	}
-	// }
 
 	
 	// Update is called once per frame

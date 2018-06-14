@@ -23,6 +23,7 @@ public class FireCannon : MonoBehaviour {
 			cannonBall.GetComponent<SphereCollider>().radius = cannonBallRadius;
 			cannonBall.transform.localScale*=cannonBallRadius;
 			cannonBall.GetComponent<Rigidbody>().AddForce(Camera.main.ScreenPointToRay(Input.mousePosition).direction*force,ForceMode.Impulse);
+			Destroy(cannonBall,5);
 		}
 	}
 }

@@ -126,11 +126,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 946217fcc05c74f2db8f26f7df5e65d9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  radius: 0
-  elements: {x: 0, y: 0, z: 0, w: 0}
-  normalContactStiffness: 0
-  normalContanctDampening: 0
-  tangentialContactDampening: 0
+  normalContactStiffness: 1
+  normalContactDampening: 0.5
+  tangentialContactDampening: 0.5
+  rayForceDirection: {x: 0, y: 0, z: 0}
 --- !u!135 &135979380737014682
 SphereCollider:
   m_ObjectHideFlags: 1
