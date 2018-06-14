@@ -2,14 +2,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Uses Raycasts to apply a force direction to edem elements, so that a force can be applied upon pressing the space bar.
+/// </summary>
 public class RayAddForce : MonoBehaviour {
 
-	// Use this for initialization
-	void Start () {
-		
-	}
-	
-	// Update is called once per frame
+	/// <summary>
+	/// Update is called once per frame
+	/// <para>
+	/// Checks if the user has clicked the left mouse button, if they have use a raycast to apply a rayForceDirection to the element hit
+	/// Also checks for the key presses W and S to see if the force to be applied to selected elements should be raised or lowered
+	/// </para>
+	/// </summary>
 	void Update () {
 		if(Input.GetMouseButtonDown(0)){
 			RaycastHit hit; // Use a raycast to select a space
@@ -21,6 +25,8 @@ public class RayAddForce : MonoBehaviour {
 				}
 			}
 		}
+		// Could do a check if they right click to remove the selection
+
 		if(Input.GetKey(KeyCode.W)){
             EdemElement.addRayForce(-1f);
         }

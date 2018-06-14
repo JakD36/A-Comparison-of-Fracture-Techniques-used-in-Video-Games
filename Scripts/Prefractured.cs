@@ -2,7 +2,13 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-/// 
+/// <summary>
+/// The prefractured method of destruction
+/// <para>
+/// Handles the initialisation of the objects surface mesh, based on the information stored in the .vol file
+/// Also handles splitting the object into its fragments by creating each tetrahedral element from the details in the .vol file.
+/// </para>
+/// </summary>
 public class Prefractured : MonoBehaviour
 {
 	public bool useSphereCollider;
@@ -60,12 +66,6 @@ public class Prefractured : MonoBehaviour
 		}
 		
 	}
-
-
-
-
-
-
 
 	/// <summary>
 	/// Creates the mesh from .vol file, and applies it to the mesh collider for the gameObject
