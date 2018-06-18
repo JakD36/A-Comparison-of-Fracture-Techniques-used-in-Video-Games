@@ -33,8 +33,8 @@ public class FireCannon : MonoBehaviour {
 			GameObject cannonBall = (GameObject)Instantiate<GameObject>(CannonBallPrefab);
 			cannonBall.transform.position = transform.position;
 			cannonBall.GetComponent<Rigidbody>().mass = cannonBallMass;
-			cannonBall.GetComponent<SphereCollider>().radius = cannonBallRadius;
 			cannonBall.transform.localScale*=cannonBallRadius;
+			cannonBall.GetComponent<SphereCollider>().radius = 0.5f; 
 			cannonBall.GetComponent<Rigidbody>().AddForce(Camera.main.ScreenPointToRay(Input.mousePosition).direction*force,ForceMode.Impulse);
 			Destroy(cannonBall,5); // Destroy the cannonball after 5 seconds 
 		}
