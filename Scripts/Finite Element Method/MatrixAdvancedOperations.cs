@@ -1,3 +1,7 @@
+using System;
+using System.Collections;
+using UnityEngine;
+
 public partial class Matrix{
     
 
@@ -93,6 +97,22 @@ public partial class Matrix{
         }else{
             throw new MatrixException("Must be a square matrix");
         }
+    }
+
+    public Matrix[] polarDecomposition(){
+        Matrix U;
+        Matrix P;
+
+         
+        Matrix V = this.calculateEigen()[1];
+        Matrix D = V.invert() * this.transpose()*this * V;
+        for(int n = 0; n < getCols(); n++){
+            D[n,n] = Mathf.Sqrt(D[n,n]);
+        }
+        P = V * D * V.invert();
+        U = this*P.invert();
+        Matrix[] output = new Matrix[] {U,P};
+        return output;
     }
 
     
