@@ -16,7 +16,10 @@ public class FEM : MonoBehaviour {
 	// Variables
 	public float materialToughness;
 
-	public float[,] stiffnessMatrix;
+	public Matrix stiffnessMatrix;
+	public Matrix massMatrix;
+	public Matrix dampeningMatrix;
+
 	
 	private List<Vector3> vertices; // The vertices of the volumetric mesh, loaded from LoadSingleton.
 	private List<Vector4> elements; // Each Vector4 stores the indices of the vertices that make up that tetrahedral element.
@@ -32,7 +35,7 @@ public class FEM : MonoBehaviour {
 	/// </summary>
 	void Start () {
 		createInitialMesh();
-		stiffnessMatrix = new float[vertices.ToArray().Length, vertices.ToArray().Length];
+		stiffnessMatrix = new Matrix(vertices.ToArray().Length, vertices.ToArray().Length);
 		
 		float[,] array = {{2,2}, {5,-1}};
 		// float[,] array = {{1,-3,3},{3,-5,3},{6,-6,4}};//{{52,30,49,28},{30,50,8,44},{49,8,46,16},{28,44,16,22}};
@@ -64,33 +67,7 @@ public class FEM : MonoBehaviour {
 				// Check to see if the two vertices are part of the same ELEMENT!
 				bool sameElement = false;
 				if(n!=m && sameElement){
-					Vector3 nN = new Vector3(); // area weight outward normal of opposite face to n
-					Vector3 nM = new Vector3(); // are weight outward normal of opposite face to m
-					int X = 0; // The current Element
-					Vector3[] Du = { // Matrix Du
-						vertices[(int)elements[X].y]-vertices[(int)elements[X].x], 
-						vertices[(int)elements[X].z]-vertices[(int)elements[X].x],
-						vertices[(int)elements[X].w]-vertices[(int)elements[X].x] 
-					};
-					Vector3[] Dx = { // Matrix Dx
-						vertices[(int)elements[X].y]-vertices[(int)elements[X].x], 
-						vertices[(int)elements[X].z]-vertices[(int)elements[X].x],
-						vertices[(int)elements[X].w]-vertices[(int)elements[X].x] 
-					};
-					Vector3[] Dv = { // Matrix Dv
-						vertices[(int)elements[X].y]-vertices[(int)elements[X].x], 
-						vertices[(int)elements[X].z]-vertices[(int)elements[X].x],
-						vertices[(int)elements[X].w]-vertices[(int)elements[X].x] 
-					};
-					// Matrix beta = // is the inverse of the matrix Du
-
-					// Matrix F = Dx*beta
-
-					// Matrix G = Dv*beta
-
-					// Matrix Q =  // Use polar decomp of F to find Q
 					
-					// float jacobian = -Q*(lambda*nI*nJ.transpose + mu*(Vector3.Dot(nI,nJ)*Mathf.Identity + mu*nJ*nI.transpose) * Q.transpose ))
 				}
 				else{
 					stiffnessMatrix[n,m] = 0.0f;
@@ -150,5 +127,10 @@ public class FEM : MonoBehaviour {
 		// Pass the mesh to the mesh collider! and tell it that convex is true so that the mesh collider can be used with rigid bodies, otherwise rigidbodies has to be set to kinematic
 		GetComponent<MeshCollider>().sharedMesh = mesh;
 		GetComponent<MeshCollider>().convex = true;
+		
+
+		// Also want to set up the Matrices for the calculations
+
+
 	}
 }

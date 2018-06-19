@@ -9,6 +9,10 @@ public class Vector{
     public Vector(int size){
         vec = new float[size];
     }
+
+    public Vector(Vector3 vec3){
+        this.vec = new float[] {vec3.x, vec3.y, vec3.z};
+    }
     
     public Vector(Matrix A, int col){
         vec = new float[A.getRows()];

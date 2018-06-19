@@ -115,6 +115,18 @@ public partial class Matrix{
         return output;
     }
 
+    public float trace(){
+        float sum = 0;
+        if(getCols() == getRows()){
+            for(int n = 0; n < getCols(); n++){
+                sum += matrix[n,n];
+            }
+        }
+        else{
+            throw new MatrixException("Must be square matrix");
+        }
+        return sum;   
+    }
     
 
 }
