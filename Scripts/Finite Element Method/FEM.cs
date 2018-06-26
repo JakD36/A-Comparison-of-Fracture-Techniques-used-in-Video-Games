@@ -15,16 +15,16 @@ public class FEM : MonoBehaviour {
     
 	// Variables
 	public float materialToughness;
+	public float youngsModulus;
+	public float poissonsRatio;
 
-	public Matrix stiffnessMatrix;
-	public Matrix massMatrix;
-	public Matrix dampeningMatrix;
 
+	private Matrix stiffnessMatrix;
+	private Matrix massMatrix;
+	private Matrix dampeningMatrix;
+
+	List<FEMElement> FEMElements;
 	
-	private List<Vector3> vertices; // The vertices of the volumetric mesh, loaded from LoadSingleton.
-	private List<Vector4> elements; // Each Vector4 stores the indices of the vertices that make up that tetrahedral element.
-    
-    private List<int> surfaceTriangles; // Each group of 3 ints in the List correspond to the indices of the surface triangles.
 
 	/// <summary>
 	/// Use this for initialization
@@ -35,19 +35,11 @@ public class FEM : MonoBehaviour {
 	/// </summary>
 	void Start () {
 		createInitialMesh();
-		stiffnessMatrix = new Matrix(vertices.ToArray().Length, vertices.ToArray().Length);
 		
-		float[,] array = {{2,2}, {5,-1}};
-		// float[,] array = {{1,-3,3},{3,-5,3},{6,-6,4}};//{{52,30,49,28},{30,50,8,44},{49,8,46,16},{28,44,16,22}};
-		Matrix testMat = new Matrix(array);
+		
 
 		try{
-			Debug.Log( Matrix.printMatrix(testMat));
-			Debug.Log( Matrix.printMatrix(testMat.QRdecomp()[0]));
-			Debug.Log( Matrix.printMatrix(testMat.QRdecomp()[1]));
-			Debug.Log( Matrix.printMatrix(testMat.calculateEigen()[0]));
-			Debug.Log( Matrix.printMatrix(testMat.calculateEigen()[1]));
-			Debug.Log( Matrix.printMatrix(testMat));
+			
 		}catch(MatrixException e){
 			Debug.Log(e.Message);
 		}
@@ -61,26 +53,7 @@ public class FEM : MonoBehaviour {
 	/// </para>
 	/// </summary>
 	void fixedUpdate () {
-		Mesh mesh = GetComponent<MeshFilter>().mesh;
-		for(int n = 0; n < mesh.vertices.Length; n++){
-			for(int m = 0; n < mesh.vertices.Length; m++){
-				// Check to see if the two vertices are part of the same ELEMENT!
-				bool sameElement = false;
-				if(n!=m && sameElement){
-					
-				}
-				else{
-					stiffnessMatrix[n,m] = 0.0f;
-				}
 
-				// Now built the stiffness matrix 
-
-				// Use conjugate gradient method to find v+ 
-				// We know M C K need to find forces and v+ 
-
-				// REALLY NEED TO LEARN FEM FUUUUUUUUCK
-			}	
-		}
 	}
 
 	/// <summary>
@@ -106,9 +79,12 @@ public class FEM : MonoBehaviour {
 	private void createInitialMesh(){
 
 		// Initialise lists
-		vertices = new List<Vector3> { };
-        surfaceTriangles = new List<int> { };
-        elements = new List<Vector4> { };
+		FEMElements = new List<FEMElement> {};
+		Node[] Nodes;
+
+		List<Vector3> vertices = new List<Vector3> { };
+        List<int> surfaceTriangles = new List<int> { };
+        List<Vector4> elements = new List<Vector4> { };
 
 		// Grab an instance of the volumetric loader
 		LoadSingleton instance = LoadSingleton.getInstance();
@@ -127,10 +103,15 @@ public class FEM : MonoBehaviour {
 		// Pass the mesh to the mesh collider! and tell it that convex is true so that the mesh collider can be used with rigid bodies, otherwise rigidbodies has to be set to kinematic
 		GetComponent<MeshCollider>().sharedMesh = mesh;
 		GetComponent<MeshCollider>().convex = true;
-		
 
-		// Also want to set up the Matrices for the calculations
+		Nodes = new Node[mesh.vertices.Length];
 
+		for(int n = 0; n < mesh.vertices.Length; n++){
+			Nodes[n] = (new Node(mesh.vertices[n]));
+		}
+		foreach (Vector4 element in elements){
+			FEMElements.Add(new FEMElement(Nodes[(int)element.x],Nodes[(int)element.y],Nodes[(int)element.z],Nodes[(int)element.w]));
+		}
 
 	}
 }

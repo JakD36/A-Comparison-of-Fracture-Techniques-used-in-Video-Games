@@ -8,17 +8,22 @@ public class FEMElement{
 
     private Matrix beta;
 
-    public FEMElement(Vector3 nodeA, Vector3 nodeB, Vector3 nodeC, Vector3 nodeD){
+    public FEMElement(Node nodeA, Node nodeB, Node nodeC, Node nodeD){
         children = new Node[4];
-        children[0] = new Node(nodeA);
-        children[1] = new Node(nodeB);
-        children[2] = new Node(nodeC);
-        children[3] = new Node(nodeD);
+        // Add the 4 nodes to the FEM tetrahedron
+        children[0] = nodeA;
+        children[1] = nodeB;
+        children[2] = nodeC;
+        children[3] = nodeD;
 
+        // Calculate Beta, that will be used to find deformation gradient
         beta = calculateBeta();
+
+        // Get the position of the element, as the centre point of all 4 nodes
         position = new Vector3();
         for(int n = 0; n < 4; n++){
             position += children[n].uPosition;
+            children[n].setParent(this); // As we are looping anyway tell the node which element it belongs to
         }
         position/=4;
     }
@@ -27,7 +32,7 @@ public class FEMElement{
         Matrix Du = new Matrix(3,3);
 
         for(int n = 0; n < 3; n++){
-            Du[0,n] = children[n].uPosition.x-children[0].uPosition.x; // I believe DU is the original positions! So Beta is a constant, therefore i have no idea what is going on
+            Du[0,n] = children[n].uPosition.x-children[0].uPosition.x; 
             Du[1,n] = children[n].uPosition.y-children[0].uPosition.y;
             Du[2,n] = children[n].uPosition.z-children[0].uPosition.z;
         }
@@ -85,10 +90,5 @@ public class FEMElement{
             AWONormals.replaceColumn(normal,n);
             elasticForceOnNode[n] = Q * elementStress * area * normal;
         }
-
-
-
     }
-
-
 }

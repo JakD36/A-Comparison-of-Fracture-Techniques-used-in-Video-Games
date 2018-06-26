@@ -12,6 +12,13 @@ public class Node{
 
     private FEMElement parent;
 
+    public Node(Vector3 vertex){
+        this.undeformedPosition = vertex;
+        this.deformedPosition = vertex;
+        this.velocity = new Vector3();
+        this.mass = 1; // NEED TO SET THE MASS PROPERLY
+    }
+
     public Vector3 uPosition{
         get{return undeformedPosition;}
         set{this.undeformedPosition = value;}
@@ -27,10 +34,7 @@ public class Node{
         set{this.velocity = value;}
     }
 
-    public Node(Vector3 vertexPosition){
-        this.deformedPosition = vertexPosition;
-        this.velocity = new Vector3(); // Zero velocity
+    public void setParent(FEMElement parent){
+        this.parent = parent;
     }
-
-
 }
