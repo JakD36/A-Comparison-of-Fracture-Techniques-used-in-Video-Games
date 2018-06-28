@@ -2,13 +2,19 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
+
 public class FEMElement{
     private Node[] children;
     private Vector3 position;
 
+    private FEM parent;
+
     private Matrix beta;
 
-    public FEMElement(Node nodeA, Node nodeB, Node nodeC, Node nodeD){
+    public FEMElement(FEM parent, Node nodeA, Node nodeB, Node nodeC, Node nodeD){
+        this.parent = parent;
+
         children = new Node[4];
         // Add the 4 nodes to the FEM tetrahedron
         children[0] = nodeA;
@@ -31,10 +37,10 @@ public class FEMElement{
     private Matrix calculateBeta(){
         Matrix Du = new Matrix(3,3);
 
-        for(int n = 0; n < 3; n++){
-            Du[0,n] = children[n].uPosition.x-children[0].uPosition.x; 
-            Du[1,n] = children[n].uPosition.y-children[0].uPosition.y;
-            Du[2,n] = children[n].uPosition.z-children[0].uPosition.z;
+        for(int n = 1; n < 4; n++){
+            Du[0,n-1] = children[n].uPosition.x-children[0].uPosition.x; 
+            Du[1,n-1] = children[n].uPosition.y-children[0].uPosition.y;
+            Du[2,n-1] = children[n].uPosition.z-children[0].uPosition.z;
         }
         return Du.invert();
     }
@@ -49,7 +55,7 @@ public class FEMElement{
         }
         return Dx*beta; // Return the deformation gradient 
     }
-    void calculations(){
+    public void FEA(){
         Matrix F = calculateDeformationGradient();
         // now use polar decomposition to split F into Q and A
         Matrix Q = F.polarDecomposition()[0];
@@ -57,9 +63,8 @@ public class FEMElement{
         F =  Q.transpose()*F;
 
         Matrix corotationalStrain = 0.5f * (F + F.transpose()) - Matrix.identity(3);
-        float lambda = 1; // Material property 
-        float mu = 1; // Material property 
-        Matrix elementStress = lambda * corotationalStrain.trace()*Matrix.identity(3) + 2*mu*corotationalStrain;
+        
+        Matrix elementStress = parent.getLambda() * corotationalStrain.trace()*Matrix.identity(3) + 2*parent.getMu()*corotationalStrain;
 
         Vector[] elasticForceOnNode = new Vector[4];
         
@@ -69,10 +74,11 @@ public class FEMElement{
             Vector3[] trianglePoints = new Vector3[3];
             Vector3 midPointOfTriangle = new Vector3();
 
-            for(int m = 0; m < 4; m++){ // Grab the other 3 nodes! we need to calculate an area!
+            for(int m = 0, M = 0; m < 4; m++){ // Grab the other 3 nodes! we need to calculate an area!
                 if(m!=n){
-                    trianglePoints[m] = children[m].Position;
+                    trianglePoints[M] = children[m].Position;
                     midPointOfTriangle += children[m].Position;
+                    M++;
                 }
             }
             midPointOfTriangle/=3; // get the midpoint!
@@ -89,6 +95,33 @@ public class FEMElement{
             }
             AWONormals.replaceColumn(normal,n);
             elasticForceOnNode[n] = Q * elementStress * area * normal;
+
+            // Calculate the Jacobians so they can be passed out to the stiffness Matrix
+            // Through this.parent add jacobians to the stiffness matrix
+            //parent.stiffnessMatrix[,] // using the node indices for the system to add to the jacobian
+
+            
+            
+
         }
+        for(int n = 0; n < children.Length; n++){
+            Vector nn = new Vector(AWONormals,n);
+            for(int m = 0; m < children.Length; m++){
+                // Now to find the Jacobian for force on n with respect to position m
+                if(n!=m){
+                    Matrix J = new Matrix(3,3);
+                    Vector nm = new Vector(AWONormals,m);
+                    J = -1*Q*(parent.getLambda() * Vector.Dot(nn,nm) + parent.getMu()*(Vector.Dot(nn,nm)*Matrix.identity(3) + parent.getMu()*Vector.Dot(nm,nn) ) )*Q.transpose() ;
+                    
+                    for(int i = 0; i < 3; i++){
+                        for(int j = 0; j < 3; j++){
+                            parent.stiffnessMatrix[children[n].Index*3+i,children[m].Index*3+j] += J[i,j];
+                        }
+                    }
+                    
+                }
+            }
+        }
+        
     }
 }

@@ -2,6 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+
+
 public class Node{
     
     private Vector3 undeformedPosition;
@@ -9,10 +11,11 @@ public class Node{
     private Vector3 velocity;
 
     private float mass;
-
+    private int index;
     private FEMElement parent;
 
-    public Node(Vector3 vertex){
+    public Node(Vector3 vertex, int index){
+        this.index = index;
         this.undeformedPosition = vertex;
         this.deformedPosition = vertex;
         this.velocity = new Vector3();
@@ -22,6 +25,11 @@ public class Node{
     public Vector3 uPosition{
         get{return undeformedPosition;}
         set{this.undeformedPosition = value;}
+    }
+
+    public int Index{
+        get{return this.index;}
+        set{;}
     }
 
     public Vector3 Position{

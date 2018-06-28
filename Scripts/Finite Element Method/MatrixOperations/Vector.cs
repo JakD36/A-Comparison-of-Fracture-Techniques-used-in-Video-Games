@@ -22,7 +22,11 @@ public class Vector{
     }
 
     public Vector(float[] array){
-        vec = array;
+        vec = (float[])array.Clone();
+    }
+
+    public Vector Clone(){
+        return new Vector((float[])vec.Clone());
     }
 
     // Indexer!

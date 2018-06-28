@@ -2,9 +2,11 @@ using System;
 using System.Collections;
 using UnityEngine;
 
+
+
 public partial class Matrix{
 
-        // Operator Overloading!
+    // Operator Overloading!
     public static Matrix operator+(Matrix a, Matrix b){
         
         Matrix output; 
@@ -24,6 +26,19 @@ public partial class Matrix{
 
     }
 
+    public static Matrix operator+(Matrix a, float b){
+        
+        Matrix output = new Matrix(a.getRows(),a.getCols());
+        for(int n = 0; n < a.getRows(); n++){
+            for(int m = 0; m < a.getCols(); m++){
+                output[n,m] = a[n,m] + b;
+            } 
+        }
+        return output;
+    }
+
+    public static Matrix operator+(float a, Matrix b){return b+a;}
+
     public static Matrix operator-(Matrix a, Matrix b){
         
         Matrix output; 
@@ -42,6 +57,7 @@ public partial class Matrix{
         return output;
 
     }
+
 
     public static Matrix operator*(Matrix a, Matrix b){
         
@@ -91,6 +107,26 @@ public partial class Matrix{
                     output[n,m] = a[n,m]/b;
                 }
             }
+        return output;
+    }
+
+    public static Vector3 operator*(Matrix a, Vector3 b){
+        
+        Vector3 output; 
+        
+        if(a.getCols() == 3 && a.getRows() == 3 ){
+            output = new Vector3();
+            
+            for(int n = 0; n < a.getRows(); n++){
+                for(int k = 0; k < 3; k++){
+                    output[n] += a[n,k]*b[k];
+                }
+            }
+            
+        }else{
+            throw new MatrixException("Needs to be a 3x3 matrix");
+        }
+
         return output;
     }
 

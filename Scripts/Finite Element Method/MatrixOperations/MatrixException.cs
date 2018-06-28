@@ -1,5 +1,7 @@
 using System;
 
+
+
 public class MatrixException : System.Exception { 
     
     /// <summary>

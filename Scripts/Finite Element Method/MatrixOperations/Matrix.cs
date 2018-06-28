@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
+
 /// <summary>
 ///
 /// <para>
@@ -20,6 +21,12 @@ public partial class Matrix{
     /// </summary>
     public Matrix(int rows, int cols){
         matrix = new float[rows,cols];
+    }
+    public Matrix(Vector vec){
+        matrix = new float[1,vec.Length];
+        for(int n = 0; n < vec.Length; n++){
+            matrix[1,n] = vec[n];
+        }
     }
 
     public Matrix(Vector3 vec){
