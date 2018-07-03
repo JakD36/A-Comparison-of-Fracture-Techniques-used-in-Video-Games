@@ -85,7 +85,7 @@ public partial class Matrix{
             Matrix A = new Matrix(matrix);
             eigenvectors = Matrix.identity(getCols());
             for(int n = 0; n < 50; n++){ // Probs need a proper way of knowing when to stop iterations
-                Matrix[] QR = A.QRdecomp();
+                Matrix[] QR = A.QRdecomp(); // This is correct, leave it be
                 A = QR[1]*QR[0];
                 eigenvectors *= QR[0];
             }

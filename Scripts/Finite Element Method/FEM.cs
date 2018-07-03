@@ -25,15 +25,32 @@ public class FEM : MonoBehaviour {
 
 	public int maxIterations;
 
-	Node[] Nodes;
 
-	public Matrix stiffnessMatrix;
-	private Matrix massMatrix;
-	private Matrix dampeningMatrix;
+	// GPU shader stuff
+	public ComputeShader shader;
+    private int kernel;
 
-	List<FEMElement> FEMElements;
-	
-	Vector extForce;
+	elementData[] data;
+	elementData[] output;
+
+	// StiffnessMatrixStruct[,] K;
+
+	// List<rowCompressedList> compressedK;
+	// IA[] ia;
+
+	struct elementData{
+		public Matrix4x4 unDeformedPos;
+		public Matrix4x4 deformedPos;
+		public Matrix4x4 elasticForceOnNode;
+		public Matrix4x4 areaWeightNormals;		
+		public Vector4 elementIndices;
+		
+	};
+
+
+	struct IA{
+		public float index;
+	}
 
 	/// <summary>
 	/// Use this for initialization
@@ -46,7 +63,9 @@ public class FEM : MonoBehaviour {
 		createInitialMesh();
 		lambda = ( poissonsRatio * youngsModulus * (1 - 2 * poissonsRatio) )/(1 + poissonsRatio);
 		mu = youngsModulus / ( 2*( 1+poissonsRatio ) );
-		
+		kernel = shader.FindKernel("FEA");
+		Debug.Log(sizeof(float));
+		Debug.Log( (256-sizeof(float)*12*4)/4 );
 	}
 	
 	/// <summary>
@@ -57,8 +76,8 @@ public class FEM : MonoBehaviour {
 	/// </summary>
 	void FixedUpdate () {
 		
-		
-		extForce[0] = 0;
+		performFEA();
+	
 	}
 
 	/// <summary>
@@ -80,70 +99,87 @@ public class FEM : MonoBehaviour {
 	{
 		float totalForce = (other.impulse/Time.fixedDeltaTime).magnitude;
 		float numOfContacts = other.contacts.Length;
-		extForce[0] = totalForce;
-		performFEA();
+		
 	}
 
 	private void performFEA(){
-		for(int n = 0; n < FEMElements.ToArray().Length; n++){
-			FEMElements[n].FEA();
-		}
-		dampeningMatrix = massMatrix + stiffnessMatrix;
-		// Now we have M, C and K, we should know v,x and u
-		// need to use conjugate gradient to solve for v+ here
-		conjugateGradientSolver();
-	}
-
-	private void conjugateGradientSolver(){
-		Debug.Log("Ran Solver");
-		// Set up velocities vector
-		Vector nodeVelocities = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
-		Vector nodeDisplacements = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
-		Vector nodeVertex = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
-		for(int i = 0, j = 0; i < Nodes.Length; i++, j+=3){
-			nodeVelocities[j] = Nodes[i].Velocity.x;
-			nodeVelocities[j+1] = Nodes[i].Velocity.y;
-			nodeVelocities[j+2] = Nodes[i].Velocity.z;
-
-			nodeDisplacements[j] = Nodes[i].Position.x;
-			nodeDisplacements[j+1] = Nodes[i].Position.y;
-			nodeDisplacements[j+2] = Nodes[i].Position.z;
-
-			nodeVertex[j] = Nodes[i].uPosition.x;
-			nodeVertex[j+1] = Nodes[i].uPosition.y;
-			nodeVertex[j+2] = Nodes[i].uPosition.z;
-		}
-
-		Vector b = Time.fixedDeltaTime * extForce + massMatrix*nodeVelocities - Time.fixedDeltaTime * stiffnessMatrix * (nodeDisplacements - nodeVertex);
-		Matrix A = massMatrix + Time.fixedDeltaTime*dampeningMatrix+Mathf.Pow(Time.fixedDeltaTime,2)*stiffnessMatrix;
-
-		List<Vector> residuals = new List<Vector>() {};
-		List<Vector> searchDirection = new List<Vector>() {};
-		residuals.Add(b - A * nodeVelocities);
-		searchDirection.Add(residuals[0]);
-		float error = 99.0f;
-		int n = 0;
-		Vector newNodeVelocities = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
-		do{
-			float alpha = Vector.Dot(residuals[n],residuals[n])/Vector.Dot(searchDirection[n],A*searchDirection[n]);
-			newNodeVelocities = nodeVelocities + alpha*searchDirection[n];
-			residuals.Add(residuals[n] - alpha*A*searchDirection[n]);
-			// Find error in residuals
-			error = 10; // thatll do for now
-
-			// Find new search direction
-			float beta = Vector.Dot(residuals[n+1],residuals[n+1])/Vector.Dot(residuals[n],residuals[n]);
-			searchDirection.Add(residuals[n+1] + beta*searchDirection[n]);
-			
-			// Progress forward
-			n++;
-			nodeVelocities = newNodeVelocities.Clone();
-
-		}while(error>0.001 || n < maxIterations);
 		
-		// Give nodes velocity calculate new position!		
-
+		
+		ComputeBuffer buffer = new ComputeBuffer(data.Length, 272); // 640 Bytes! PER ELEMENT!4
+		
+        
+		shader.SetFloat("mass",1);
+		shader.SetFloat("lambda",lambda);
+		shader.SetFloat("mu",mu);
+		
+		buffer.SetData(data);
+		shader.SetBuffer(kernel,"dataBuffer",buffer);
+		
+		// ComputeBuffer KBuffer = new ComputeBuffer(K.Length,64);
+        // KBuffer.SetData(K);
+		// shader.SetBuffer(kernel,"stiffnessBuffer",KBuffer);
+        
+		shader.Dispatch(kernel,data.Length,1,1);
+        
+		buffer.GetData(output);
+		// KBuffer.GetData(K);
+        buffer.Dispose();
+		// KBuffer.Dispose();
+		// Debug.Log(K.Length);
+		// Debug memory allocation and retrieval
+		Debug.Log(output.Length);
+		Debug.Log("Set 1");
+		Debug.Log(output[0].unDeformedPos.ToString());
+		Debug.Log(output[0].deformedPos.ToString());
+		Debug.Log(output[0].elasticForceOnNode.ToString());
+		Debug.Log(output[0].areaWeightNormals.ToString());
+		Debug.Log("Set 2");
+		Debug.Log(output[1].unDeformedPos.ToString());
+		Debug.Log(output[1].deformedPos.ToString());
+		Debug.Log(output[1].elasticForceOnNode.ToString());
+		Debug.Log(output[1].areaWeightNormals.ToString());
+		
+		// Craft our row compressed stiffness matrix!
 	}
+
+	// private void conjugateGradientSolver(){
+	// 	Debug.Log("Running Solver");
+	// 	// Set up velocities vector
+	// 	Vector nodeVelocities = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
+	// 	Vector nodeDisplacements = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
+	// 	Vector nodeVertex = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
+		
+
+	// 	Vector b = Time.fixedDeltaTime * extForce + massMatrix*nodeVelocities - Time.fixedDeltaTime * stiffnessMatrix * (nodeDisplacements - nodeVertex);
+	// 	Matrix A = massMatrix + Time.fixedDeltaTime*dampeningMatrix+Mathf.Pow(Time.fixedDeltaTime,2)*stiffnessMatrix;
+
+	// 	List<Vector> residuals = new List<Vector>() {};
+	// 	List<Vector> searchDirection = new List<Vector>() {};
+	// 	residuals.Add(b - A * nodeVelocities);
+	// 	searchDirection.Add(residuals[0]);
+	// 	float error = 99.0f;
+	// 	int n = 0;
+	// 	Vector newNodeVelocities = new Vector(GetComponent<MeshFilter>().mesh.vertices.Length*3);
+	// 	do{
+	// 		float alpha = Vector.Dot(residuals[n],residuals[n])/Vector.Dot(searchDirection[n],A*searchDirection[n]);
+	// 		newNodeVelocities = nodeVelocities + alpha*searchDirection[n];
+	// 		residuals.Add(residuals[n] - alpha*A*searchDirection[n]);
+	// 		// Find error in residuals
+	// 		error = 10; // thatll do for now
+
+	// 		// Find new search direction
+	// 		float beta = Vector.Dot(residuals[n+1],residuals[n+1])/Vector.Dot(residuals[n],residuals[n]);
+	// 		searchDirection.Add(residuals[n+1] + beta*searchDirection[n]);
+			
+	// 		// Progress forward
+	// 		n++;
+	// 		nodeVelocities = newNodeVelocities.Clone();
+
+	// 	}while(error>0.001 || n < maxIterations);
+		
+	// 	// Give nodes velocity calculate new position!		
+
+	// }
 
 	public float getLambda(){
 		return lambda;
@@ -166,7 +202,7 @@ public class FEM : MonoBehaviour {
 	private void createInitialMesh(){
 
 		// Initialise lists
-		FEMElements = new List<FEMElement> {};
+		// FEMElements = new List<FEMElement> {};
 		
 
 		List<Vector3> vertices = new List<Vector3> { };
@@ -191,23 +227,44 @@ public class FEM : MonoBehaviour {
 		GetComponent<MeshCollider>().sharedMesh = mesh;
 		GetComponent<MeshCollider>().convex = true;
 
-		Nodes = new Node[mesh.vertices.Length];
-		stiffnessMatrix = new Matrix(mesh.vertices.Length*3,mesh.vertices.Length*3);
-		dampeningMatrix = new Matrix(mesh.vertices.Length*3,mesh.vertices.Length*3);
-		massMatrix = new Matrix(mesh.vertices.Length*3,mesh.vertices.Length*3);
-		extForce = new Vector(mesh.vertices.Length*3);
-		for(int n = 0; n < mesh.vertices.Length; n++){
-			Nodes[n] = (new Node(mesh.vertices[n],n));
-		}
-		foreach (Vector4 element in elements){
+		
+		//-------------------------------- Deformation --------------------------------
+		
+		data = new elementData[elements.ToArray().Length];
+		output = new elementData[elements.ToArray().Length];
+		// K = new StiffnessMatrixStruct[mesh.vertices.Length,mesh.vertices.Length];
+		// ia = new IA[mesh.vertices.Length+1];
+		
+		for(int n = 0; n < data.Length; n++){
 			
-			FEMElements.Add(new FEMElement(this,Nodes[(int)element.x-1],Nodes[(int)element.y-1],Nodes[(int)element.z-1],Nodes[(int)element.w-1]));
-		}
-		float nodeMass = GetComponent<Rigidbody>().mass/mesh.vertices.Length;
-		for(int n = 0; n < mesh.vertices.Length*3; n++){
-			massMatrix[n,n] = nodeMass;
+			data[n].unDeformedPos = new Matrix4x4();
+			data[n].deformedPos = new Matrix4x4();
+			data[n].areaWeightNormals = new Matrix4x4();
+			data[n].elasticForceOnNode = new Matrix4x4();
+			
+			data[n].elementIndices = elements[n];
+
+			// data[n].jacobian1to2 = new Matrix4x4();
+			// data[n].jacobian1to3 = new Matrix4x4();
+			// data[n].jacobian1to4 = new Matrix4x4();
+
+			// data[n].jacobian2to3 = new Matrix4x4();
+			// data[n].jacobian2to4 = new Matrix4x4();
+
+			// data[n].jacobian3to4 = new Matrix4x4();
+
+		
+			for(int m = 0; m < 3; m++){
+				data[n].unDeformedPos[m,0] = mesh.vertices[(int)elements[n].x-1][m];
+				data[n].unDeformedPos[m,1] = mesh.vertices[(int)elements[n].y-1][m];
+				data[n].unDeformedPos[m,2] = mesh.vertices[(int)elements[n].z-1][m];
+				data[n].unDeformedPos[m,3] = mesh.vertices[(int)elements[n].w-1][m];
+			}
+			data[n].deformedPos = data[n].unDeformedPos;
 		}
 
+
+		float nodeMass = GetComponent<Rigidbody>().mass/mesh.vertices.Length;
 	}
 }
 

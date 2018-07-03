@@ -1,0 +1,382 @@
+#pragma kernel FEA 
+#pragma kernel RowVectorMultiplication
+
+float mass;      
+float lambda;
+float mu;
+
+struct elementData{
+    float4x4 unDeformedPos;
+    float4x4 deformedPos;
+    float4x4 elasticForceOnNode;
+    float4x4 areaWeightNormals;
+
+    float4 elementIndices;
+    
+    // float4x4 jacobian1to1;
+    // float4x4 jacobian1to2;
+    // float4x4 jacobian1to3;
+    // float4x4 jacobian1to4;
+
+    // float4x4 jacobian2to2;
+    // float4x4 jacobian2to3;
+    // float4x4 jacobian2to4;
+
+    // float4x4 jacobian3to3;
+    // float4x4 jacobian3to4;
+
+    // float4x4 jacobian4to4;
+};
+
+RWStructuredBuffer<elementData> dataBuffer; // Our read write structured buffer to store all the info we need
+
+
+float2x2 exclude(float3x3 input, int row, int col){
+    float2x2 output;
+    for(int n = 0, N = 0; n < 2; n++, N++){
+        for(int m = 0, M = 0; m < 2; m++, M++){
+            if(N == row){
+                N++; // If row to be excluded move to next
+            }
+            if(M == col){
+                M++; // if Col to be exclude move to next
+            }
+            output[n][m] = input[N][M];
+        }   
+    }
+    return output;
+}
+
+float3 getVector(float3x3 input, int col){
+    float3 output;
+    for(int n = 0; n < 3; n++){
+        output[n] = input[n][col];
+    }
+    return output;
+}
+
+float3x3 inverse(float3x3 input){
+    float3x3 output;
+    float det = determinant(input);
+    float3x3 adjoint;
+    for(uint n = 0; n < 3; n++){
+        for(uint m = 0; m < 3; m++){
+            int s = 1;
+        
+            if(n%2 != 0){
+                s*=-1;
+            }
+            if(m%2 != 0){
+                s*=-1;
+            }   
+            adjoint[n][m] = s*determinant(exclude(input,n,m));
+        }
+    }
+    adjoint = transpose(adjoint);
+
+    output = adjoint/det;
+    return output;
+}
+
+void QRdecomp(float3x3 A: IN,
+                  float3x3 Q: OUT,
+                  float3x3 R: OUT){
+    float3 a1 = getVector(A,0);
+    float3 a2 = getVector(A,1);
+    float3 a3 = getVector(A,1);
+    
+    Q._m00_m10_m20 = normalize(a1); // Column 1
+    
+    float3 u2 = a2 - dot(a2,Q._m00_m10_m20)*Q._m00_m10_m20;
+    Q._m01_m11_m21 = normalize(u2); // Column 2
+
+    float3 u3 = a3 - dot(a3,Q._m00_m10_m20)*Q._m00_m10_m20 - dot(a3,Q._m01_m11_m21)*Q._m01_m11_m21;
+    Q._m02_m12_m22 = normalize(u3); // Column 3
+
+    // Row 1
+    R._m00 = dot(a1,Q._m00_m10_m20);
+    R._m01 = dot(a2,Q._m00_m10_m20);
+    R._m02 = dot(a3,Q._m00_m10_m20);
+
+    // Row 2
+    R._m11 = dot(a2,Q._m00_m10_m20);
+    R._m12 = dot(a3,Q._m01_m11_m21);
+
+    // Row 3
+    R._m22 = dot(a3,Q._m02_m12_m22);
+}
+
+void calculateEigen(float3x3 input,float3x3 outEigenvalues, float3x3 outEigenvectors){
+    float3x3 eigenvectors = {1,0,0,
+                             0,1,0,
+                             0,0,1};
+    float3x3 A;
+    float3x3 Q;
+    float3x3 R;
+    
+    for(int n = 0; n < 50; n++){
+        QRdecomp(input,Q,R);
+        A = mul(R,Q);
+        eigenvectors = mul(eigenvectors,Q);
+    }
+
+    outEigenvalues = A;
+    outEigenvectors = eigenvectors;
+}
+
+void polarDecomp(float3x3 input, float3x3 U, float3x3 P){
+    float3x3 eigenvalues;
+    float3x3 eigenvectors; 
+    calculateEigen(input,eigenvalues,eigenvectors);
+    float3x3 D = mul(inverse(eigenvectors),mul(transpose(input),mul(input,eigenvectors)));
+    D._m00 = sqrt(D._m00);
+    D._m11 = sqrt(D._m11);
+    D._m22 = sqrt(D._m22);
+    P = mul(eigenvectors ,mul(D,inverse(eigenvectors)) );
+    U = mul(input,inverse(P));
+}
+
+float trace(float3x3 input){
+    float sum = 0.0f;
+    for(int n = 0; n < 3; n++){
+        sum += input[n][n];
+    }
+    return sum/3;
+}
+
+
+
+[numthreads(64,1,1)]
+void FEA(uint3 id: SV_DispatchThreadID){ 
+    
+    float2x2 a = { {1.0f,1.0f}, {1.0f,1.0f} };
+    float3x3 Du = {
+                   {dataBuffer[id.x].unDeformedPos[0][1]-dataBuffer[id.x].unDeformedPos[0][0], 
+                   dataBuffer[id.x].unDeformedPos[0][2]-dataBuffer[id.x].unDeformedPos[0][0], 
+                   dataBuffer[id.x].unDeformedPos[0][3]-dataBuffer[id.x].unDeformedPos[0][0]},
+                   
+                   {dataBuffer[id.x].unDeformedPos[1][1]-dataBuffer[id.x].unDeformedPos[1][0], 
+                   dataBuffer[id.x].unDeformedPos[1][2]-dataBuffer[id.x].unDeformedPos[1][0], 
+                   dataBuffer[id.x].unDeformedPos[1][3]-dataBuffer[id.x].unDeformedPos[1][0]},
+                   
+                   {dataBuffer[id.x].unDeformedPos[2][1]-dataBuffer[id.x].unDeformedPos[2][0], 
+                   dataBuffer[id.x].unDeformedPos[2][2]-dataBuffer[id.x].unDeformedPos[2][0], 
+                   dataBuffer[id.x].unDeformedPos[2][3]-dataBuffer[id.x].unDeformedPos[2][0]}
+                   };
+    
+    float3x3 beta = inverse(Du);
+    float3x3 Dx = {
+                   {dataBuffer[id.x].deformedPos[0][1]-dataBuffer[id.x].deformedPos[0][0], 
+                   dataBuffer[id.x].deformedPos[0][2]-dataBuffer[id.x].deformedPos[0][0], 
+                   dataBuffer[id.x].deformedPos[0][3]-dataBuffer[id.x].deformedPos[0][0]},
+                   
+                   {dataBuffer[id.x].deformedPos[1][1]-dataBuffer[id.x].deformedPos[1][0], 
+                   dataBuffer[id.x].deformedPos[1][2]-dataBuffer[id.x].deformedPos[1][0], 
+                   dataBuffer[id.x].deformedPos[1][3]-dataBuffer[id.x].deformedPos[1][0]},
+                   
+                   {dataBuffer[id.x].deformedPos[2][1]-dataBuffer[id.x].deformedPos[2][0], 
+                   dataBuffer[id.x].deformedPos[2][2]-dataBuffer[id.x].deformedPos[2][0], 
+                   dataBuffer[id.x].deformedPos[2][3]-dataBuffer[id.x].deformedPos[2][0]}
+                   };
+
+    float3x3 F = mul(Dx,beta);
+    float3x3 Q = {1,0,0,
+                  0,1,0,
+                  0,0,1};
+    float3x3 R;
+    polarDecomp(F,Q,R);
+    float3x3 identity = {1,0,0,
+                         0,1,0,
+                         0,0,1};
+    F = mul(Q,transpose(F));
+    float3x3 corotationalStrain = 0.5f * (F + transpose(F)) - identity;
+    float3x3 elementStress = lambda * trace(corotationalStrain) * identity + 2 * mu*corotationalStrain;
+
+    
+    
+
+    float3 midpoint = (dataBuffer[id.x].deformedPos._m00_m10_m20 + 
+                      dataBuffer[id.x].deformedPos._m01_m11_m21 +
+                      dataBuffer[id.x].deformedPos._m02_m12_m22 +
+                      dataBuffer[id.x].deformedPos._m03_m13_m23)/4; 
+    
+    // area = 0.5 * base * height
+    // Point 1
+    float base = length(dataBuffer[id.x].deformedPos._m01_m11_m21 - dataBuffer[id.x].deformedPos._m02_m12_m22);
+    float height = length(dataBuffer[id.x].deformedPos._m03_m13_m23 - (dataBuffer[id.x].deformedPos._m01_m11_m21 + dataBuffer[id.x].deformedPos._m02_m12_m22)/2 );
+    float4 area;
+    area.x = 0.5 * base * height;
+
+    // point 2
+    base = length(dataBuffer[id.x].deformedPos._m00_m10_m20 - dataBuffer[id.x].deformedPos._m02_m12_m22);
+    height = length(dataBuffer[id.x].deformedPos._m03_m13_m23 - (dataBuffer[id.x].deformedPos._m00_m10_m20 + dataBuffer[id.x].deformedPos._m02_m12_m22)/2 );
+    area.y = 0.5 * base * height;
+
+    // point 3
+    base = length(dataBuffer[id.x].deformedPos._m01_m11_m21 - dataBuffer[id.x].deformedPos._m00_m10_m20);
+    height = length(dataBuffer[id.x].deformedPos._m03_m13_m23 - (dataBuffer[id.x].deformedPos._m01_m11_m21 + dataBuffer[id.x].deformedPos._m00_m10_m20)/2 );
+    area.z = 0.5 * base * height;
+
+    // point 4
+    base = length(dataBuffer[id.x].deformedPos._m01_m11_m21 - dataBuffer[id.x].deformedPos._m02_m12_m22);
+    height = length(dataBuffer[id.x].deformedPos._m00_m10_m20 - (dataBuffer[id.x].deformedPos._m01_m11_m21 + dataBuffer[id.x].deformedPos._m02_m12_m22)/2 );
+    area.w = 0.5 * base * height;
+    
+    // Find normals 
+    // Point 1
+    dataBuffer[id.x].areaWeightNormals._m00_m10_m20 = cross((dataBuffer[id.x].deformedPos._m02_m12_m22 - dataBuffer[id.x].deformedPos._m01_m11_m21),
+                                                            (dataBuffer[id.x].deformedPos._m03_m13_m23 - dataBuffer[id.x].deformedPos._m01_m11_m21)); 
+    // Point 2
+    dataBuffer[id.x].areaWeightNormals._m01_m11_m21 = cross((dataBuffer[id.x].deformedPos._m02_m12_m22- dataBuffer[id.x].deformedPos._m00_m10_m20),
+                                                            (dataBuffer[id.x].deformedPos._m03_m13_m23 - dataBuffer[id.x].deformedPos._m00_m10_m20));
+    // Point 3
+    dataBuffer[id.x].areaWeightNormals._m02_m12_m22 = cross((dataBuffer[id.x].deformedPos._m01_m11_m21- dataBuffer[id.x].deformedPos._m00_m10_m20),
+                                                            (dataBuffer[id.x].deformedPos._m03_m13_m23 - dataBuffer[id.x].deformedPos._m00_m10_m20));
+    // Point 4
+    dataBuffer[id.x].areaWeightNormals._m03_m13_m23 = cross((dataBuffer[id.x].deformedPos._m01_m11_m21- dataBuffer[id.x].deformedPos._m00_m10_m20),
+                                                            (dataBuffer[id.x].deformedPos._m02_m12_m22 - dataBuffer[id.x].deformedPos._m00_m10_m20));
+
+    // normalise
+
+    dataBuffer[id.x].areaWeightNormals._m00_m10_m20 = normalize(dataBuffer[id.x].areaWeightNormals._m00_m10_m20);
+    dataBuffer[id.x].areaWeightNormals._m01_m11_m21 = normalize(dataBuffer[id.x].areaWeightNormals._m01_m11_m21);
+    dataBuffer[id.x].areaWeightNormals._m02_m12_m22 = normalize(dataBuffer[id.x].areaWeightNormals._m02_m12_m22);
+    dataBuffer[id.x].areaWeightNormals._m03_m13_m23 = normalize(dataBuffer[id.x].areaWeightNormals._m03_m13_m23);
+
+    // Multiply by area to weight them
+    dataBuffer[id.x].areaWeightNormals._m00_m10_m20 = area.x * dataBuffer[id.x].areaWeightNormals._m00_m10_m20; 
+    dataBuffer[id.x].areaWeightNormals._m01_m11_m21 = area.y * dataBuffer[id.x].areaWeightNormals._m01_m11_m21;
+    dataBuffer[id.x].areaWeightNormals._m02_m12_m22 = area.z * dataBuffer[id.x].areaWeightNormals._m02_m12_m22; 
+    dataBuffer[id.x].areaWeightNormals._m03_m13_m23 = area.w * dataBuffer[id.x].areaWeightNormals._m03_m13_m23;
+
+    // TODO: Check they are outward!
+
+    // need to check these are outward facing                                                             
+    // if they are not multiply by -1 to flip direction.
+
+    // find elastic force on node!
+    dataBuffer[id.x].elasticForceOnNode._m00_m10_m20 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m00_m10_m20));
+    dataBuffer[id.x].elasticForceOnNode._m01_m11_m21 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m01_m11_m21));
+    dataBuffer[id.x].elasticForceOnNode._m02_m12_m22 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m02_m12_m22));
+    dataBuffer[id.x].elasticForceOnNode._m03_m13_m23 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m03_m13_m23));
+
+    // Calculate the jacobians!!!
+    // 6 unique jacobians, 3x3
+    // dataBuffer[id.x].areaWeightNormals._m00_m10_m20 // 1
+    // dataBuffer[id.x].areaWeightNormals._m01_m11_m21 // 2
+    // dataBuffer[id.x].areaWeightNormals._m02_m12_m22 // 3
+    // dataBuffer[id.x].areaWeightNormals._m03_m13_m23 // 4
+    float3x3 j11 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m00_m10_m20) + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m00_m10_m20) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m00_m10_m20),transpose(Q)));
+    float3x3 j12 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m01_m11_m21) + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m01_m11_m21) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m01_m11_m21),transpose(Q)));
+    float3x3 j13 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m02_m12_m22) + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m02_m12_m22) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m02_m12_m22),transpose(Q)));
+    float3x3 j14 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m00_m10_m20,dataBuffer[id.x].areaWeightNormals._m03_m13_m23),transpose(Q)));
+    
+    float3x3 j22 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m01_m11_m21) + mu * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m01_m11_m21) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m01_m11_m21),transpose(Q)));
+    float3x3 j23 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m02_m12_m22) + mu * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m02_m12_m22) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m02_m12_m22),transpose(Q)));
+    float3x3 j24 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) + mu * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m01_m11_m21,dataBuffer[id.x].areaWeightNormals._m03_m13_m23),transpose(Q)));
+
+    float3x3 j33 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m02_m12_m22,dataBuffer[id.x].areaWeightNormals._m02_m12_m22) + mu * dot(dataBuffer[id.x].areaWeightNormals._m02_m12_m22,dataBuffer[id.x].areaWeightNormals._m02_m12_m22) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m02_m12_m22,dataBuffer[id.x].areaWeightNormals._m02_m12_m22),transpose(Q)));
+    float3x3 j34 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m02_m12_m22,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) + mu * dot(dataBuffer[id.x].areaWeightNormals._m02_m12_m22,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m02_m12_m22,dataBuffer[id.x].areaWeightNormals._m03_m13_m23),transpose(Q)));
+
+    float3x3 j44 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m03_m13_m23,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) + mu * dot(dataBuffer[id.x].areaWeightNormals._m03_m13_m23,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m03_m13_m23,dataBuffer[id.x].areaWeightNormals._m03_m13_m23),transpose(Q)));
+
+    // Assign our jacobians to our stiffness matrix, will row compress 
+    // 1 to 1
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[0]].A._m00_m10_m20 += j11._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[0]].A._m01_m11_m21 += j11._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[0]].A._m02_m12_m22 += j11._m02_m12_m22;
+    
+    // // 1 to 2
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[1]].A._m00_m10_m20 += j12._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[1]].A._m01_m11_m21 += j12._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[1]].A._m02_m12_m22 += j12._m02_m12_m22;
+    
+    // // 1 to 3
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[2]].A._m00_m10_m20 += j13._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[2]].A._m01_m11_m21 += j13._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[2]].A._m02_m12_m22 += j13._m02_m12_m22;
+
+    // // 1 to 4
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 += j14._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 += j14._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 += j14._m02_m12_m22;
+
+    // // 2 to 2
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[1]].A._m00_m12_m20 += j22._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[1]].A._m01_m11_m21 += j22._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[1]].A._m02_m12_m22 += j22._m02_m12_m22;
+
+    // // 2 to 3
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[2]].A._m00_m12_m20 += j23._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[2]].A._m01_m11_m21 += j23._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[2]].A._m02_m12_m22 += j23._m02_m12_m22;
+
+    // // 2 to 4
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 += j24._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 += j24._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 += j24._m02_m12_m22;
+
+    // // 3 to 3 
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[2]].A._m00_m10_m20 += j33._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[2]].A._m01_m11_m21 += j33._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[2]].A._m02_m12_m22 += j33._m02_m12_m22;
+    
+    // // 3 to 4
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 += j34._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 += j34._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 += j34._m02_m12_m22;
+
+    // // 4 to 4
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[3],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 = j44._m00_m10_m20;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[3],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 = j44._m01_m11_m21;
+    // stiffnessBuffer[dataBuffer[id.x].elementIndices[3],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 = j44._m02_m12_m22;
+
+    
+
+    // dataBuffer[id.x].jacobian1to1._m00_m10_m20 = j11._m00_m10_m20;
+    // dataBuffer[id.x].jacobian1to1._m01_m11_m21 = j11._m01_m11_m21;
+    // dataBuffer[id.x].jacobian1to1._m02_m12_m22 = j11._m02_m12_m22;
+    
+    // dataBuffer[id.x].jacobian1to2._m00_m10_m20 = j12._m00_m10_m20;
+    // dataBuffer[id.x].jacobian1to2._m01_m11_m21 = j12._m01_m11_m21;
+    // dataBuffer[id.x].jacobian1to2._m02_m12_m22 = j12._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian1to3._m00_m10_m20 = j13._m00_m10_m20;
+    // dataBuffer[id.x].jacobian1to3._m01_m11_m21 = j13._m01_m11_m21;
+    // dataBuffer[id.x].jacobian1to3._m02_m12_m22 = j13._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian1to4._m00_m10_m20 = j14._m00_m10_m20;
+    // dataBuffer[id.x].jacobian1to4._m01_m11_m21 = j14._m01_m11_m21;
+    // dataBuffer[id.x].jacobian1to4._m02_m12_m22 = j14._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian2to2._m00_m12_m20 = j22._m00_m10_m20;
+    // dataBuffer[id.x].jacobian2to2._m01_m11_m21 = j22._m01_m11_m21;
+    // dataBuffer[id.x].jacobian2to2._m02_m12_m22 = j22._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian2to3._m00_m12_m20 = j23._m00_m10_m20;
+    // dataBuffer[id.x].jacobian2to3._m01_m11_m21 = j23._m01_m11_m21;
+    // dataBuffer[id.x].jacobian2to3._m02_m12_m22 = j23._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian2to4._m00_m10_m20 = j24._m00_m10_m20;
+    // dataBuffer[id.x].jacobian2to4._m01_m11_m21 = j24._m01_m11_m21;
+    // dataBuffer[id.x].jacobian2to4._m02_m12_m22 = j24._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian3to3._m00_m10_m20 = j33._m00_m10_m20;
+    // dataBuffer[id.x].jacobian3to3._m01_m11_m21 = j33._m01_m11_m21;
+    // dataBuffer[id.x].jacobian3to3._m02_m12_m22 = j33._m02_m12_m22;
+    
+    // dataBuffer[id.x].jacobian3to4._m00_m10_m20 = j34._m00_m10_m20;
+    // dataBuffer[id.x].jacobian3to4._m01_m11_m21 = j34._m01_m11_m21;
+    // dataBuffer[id.x].jacobian3to4._m02_m12_m22 = j34._m02_m12_m22;
+
+    // dataBuffer[id.x].jacobian4to4._m00_m10_m20 = j44._m00_m10_m20;
+    // dataBuffer[id.x].jacobian4to4._m01_m11_m21 = j44._m01_m11_m21;
+    // dataBuffer[id.x].jacobian4to4._m02_m12_m22 = j44._m02_m12_m22;
+}
+// Can Have multiple kernel functions to a file
+
+[numthreads(64,1,1)]
+void RowVectorMultiplication(uint3 id: SV_DispatchThreadID){ 
+    // Here the row is id.x
+    // We can access the actual indices for all the matrix vector pairs through the indices stored in IA[id.x] to IA[id.x+1]-1 FUCK YES
+}
