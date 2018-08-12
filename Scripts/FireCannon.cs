@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 /// <summary>
 /// Allows for the firing of cannonballs, from the cameras position.
@@ -36,7 +37,7 @@ public class FireCannon : MonoBehaviour {
 			cannonBall.transform.localScale*=cannonBallRadius;
 			cannonBall.GetComponent<SphereCollider>().radius = 0.5f; 
 			cannonBall.GetComponent<Rigidbody>().AddForce(Camera.main.ScreenPointToRay(Input.mousePosition).direction*force,ForceMode.Impulse);
-			Destroy(cannonBall,5); // Destroy the cannonball after 5 seconds 
+			Destroy(cannonBall,3); // Destroy the cannonball after 5 seconds 
 		}
 	}
 }

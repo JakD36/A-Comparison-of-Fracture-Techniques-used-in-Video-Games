@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Profiling;
+using UnityEditor;
+using System.IO;
 
 /// <summary>
 /// The prefractured method of destruction
@@ -20,6 +23,7 @@ public class Prefractured : MonoBehaviour
 
 	public float breakForce;
 	
+	public bool clearDebris;
 
 	/// <summary>
 	/// Use this for initialization
@@ -31,6 +35,7 @@ public class Prefractured : MonoBehaviour
     void Start()
     {
 		createInitialMesh();
+		
     }
 
 	/// <summary>
@@ -61,8 +66,10 @@ public class Prefractured : MonoBehaviour
 	void OnCollisionEnter(Collision collision){
 		float totalForce = (collision.impulse/Time.fixedDeltaTime).magnitude;
 		// Debug.Log(gameObject.name + " hit with force >> "+ totalForce);
+		
 		if(totalForce > breakForce){
 			fracture();
+			
 		}
 		
 	}
@@ -196,7 +203,9 @@ public class Prefractured : MonoBehaviour
 				To do this would require adding the difference between centre of the 4 vertices and the origin to the position of the fragment,
 				before this is added to the position this difference vector would have to be rotated accordingly to take into account its actual position in the world space 
 				*/
-
+				if(clearDebris){
+					Destroy(frag,4);
+				}
 			}
 			// Mesh mesh = GetComponent<MeshFilter>().mesh;
 			// mesh.Clear();

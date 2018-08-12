@@ -127,3 +127,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   meshFile: vol/ico.vol
   materialToughness: 0
+  youngsModulus: 0
+  poissonsRatio: 0
+  maxIterations: 1
+  shader: {fileID: 7200000, guid: 9a7060ce4e67d4c2f8d918fb82c0388a, type: 3}

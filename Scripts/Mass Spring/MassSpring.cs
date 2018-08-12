@@ -33,6 +33,8 @@ public class MassSpring : MonoBehaviour {
 
 	[Tooltip("The stiffness k of each spring, providing a restoring force in the form F = kdx, where dx is the change in length from the rest length of the spring and the force is applied in the direction from the centre point between the two joined elements to the element")]
 	public float poreStiffness; 
+
+	public bool clearDebris;
 	
 	
 	// Private Variables
@@ -91,8 +93,8 @@ public class MassSpring : MonoBehaviour {
 		// Check for each of the broken springs, and remove them safely by going through list backwards
 		for(int n = poreSprings.Count-1; n >= 0; n--){
 			if(poreSprings[n].isBroken()){
-				poreSprings.Remove(poreSprings[n]);
-				Debug.Log("Removed Pore Spring");
+				poreSprings.Remove(poreSprings[n]); 
+				// Debug.Log("Removed Pore Spring");
 			}
 		}
 
@@ -163,7 +165,10 @@ public class MassSpring : MonoBehaviour {
 			// This is the position of the whole system, plus the distance to the centre of the vertices for this element adjusted to take into account of any rotation
 			edem.transform.position = transform.position+transform.rotation*(tetCentre); 
 			edem.transform.rotation = transform.rotation; // Simply assigning the rotation of the element.
-
+			if(clearDebris){
+				Destroy(edem,4);
+			}
+			
 
 			int[] triangles = { 0, 1, 2,   1, 3, 2,    0, 2, 3,   0, 3, 1 }; // The indices for surface triangles for each element 
 				
@@ -195,6 +200,9 @@ public class MassSpring : MonoBehaviour {
 				}
 				meshCollider.sharedMesh = mesh;
 			// }
+		}
+		if(clearDebris){
+			Destroy(gameObject,4);
 		}
 	}
 

@@ -1,4 +1,4 @@
-﻿using System.Collections;
+﻿using System. ollections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,10 +33,10 @@ public class FEM : MonoBehaviour {
 	elementData[] data;
 	elementData[] output;
 
-	// StiffnessMatrixStruct[,] K;
+	CoordinateList[] COOStiffness;
 
-	// List<rowCompressedList> compressedK;
-	// IA[] ia;
+
+	
 
 	struct elementData{
 		public Matrix4x4 unDeformedPos;
@@ -47,10 +47,24 @@ public class FEM : MonoBehaviour {
 		
 	};
 
+	struct CoordinateList{
+		Matrix4x4 jacobian;
+		float row;
+		float col;
+	};
 
-	struct IA{
-		public float index;
-	}
+	struct compressedSparseRow{ // CRS ideal for row vector multiplications // will be the length of the number of non-zeros
+		Matrix4x4 jacobian;
+		float JA; // columns for each member in the CRS structure
+	};
+
+
+	// Correct p value 
+
+
+	struct compressedSparseRow2{ // Contains the start point along the compressed sparse row where row i begins, will be length of m+1 where m is number of rows, therefore requires its own struct
+		float rowIndices; 
+	};
 
 	/// <summary>
 	/// Use this for initialization
@@ -115,17 +129,23 @@ public class FEM : MonoBehaviour {
 		buffer.SetData(data);
 		shader.SetBuffer(kernel,"dataBuffer",buffer);
 		
-		// ComputeBuffer KBuffer = new ComputeBuffer(K.Length,64);
-        // KBuffer.SetData(K);
-		// shader.SetBuffer(kernel,"stiffnessBuffer",KBuffer);
+		ComputeBuffer KBuffer = new ComputeBuffer(COOStiffness.Length,72);
+        KBuffer.SetData(COOStiffness);
+		shader.SetBuffer(kernel,"KBuffer",KBuffer);
         
 		shader.Dispatch(kernel,data.Length,1,1);
-        
+		
 		buffer.GetData(output);
-		// KBuffer.GetData(K);
         buffer.Dispose();
-		// KBuffer.Dispose();
-		// Debug.Log(K.Length);
+		
+		KBuffer.GetData(COOStiffness);
+
+		// Now we have the unsorted coordinate list 
+		// need to sort it into row major order, summing any potential duplicates 
+
+
+
+
 		// Debug memory allocation and retrieval
 		Debug.Log(output.Length);
 		Debug.Log("Set 1");
@@ -232,8 +252,10 @@ public class FEM : MonoBehaviour {
 		
 		data = new elementData[elements.ToArray().Length];
 		output = new elementData[elements.ToArray().Length];
-		// K = new StiffnessMatrixStruct[mesh.vertices.Length,mesh.vertices.Length];
-		// ia = new IA[mesh.vertices.Length+1];
+		COOStiffness = new CoordinateList[elements.ToArray().Length*10];
+		
+
+
 		
 		for(int n = 0; n < data.Length; n++){
 			
@@ -244,14 +266,6 @@ public class FEM : MonoBehaviour {
 			
 			data[n].elementIndices = elements[n];
 
-			// data[n].jacobian1to2 = new Matrix4x4();
-			// data[n].jacobian1to3 = new Matrix4x4();
-			// data[n].jacobian1to4 = new Matrix4x4();
-
-			// data[n].jacobian2to3 = new Matrix4x4();
-			// data[n].jacobian2to4 = new Matrix4x4();
-
-			// data[n].jacobian3to4 = new Matrix4x4();
 
 		
 			for(int m = 0; m < 3; m++){

@@ -38,7 +38,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1226010064908130}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 5, z: 0}
+  m_LocalPosition: {x: 0, y: 0.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -125,6 +125,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f7e4a989459c34d5bab0573c0072bd4f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  useSphereCollider: 0
-  meshFile: vol/ico.vol
+  useSphereCollider: 1
+  meshFile: vol/icoModerate198.vol
   breakForce: 800
+  clearDebris: 1

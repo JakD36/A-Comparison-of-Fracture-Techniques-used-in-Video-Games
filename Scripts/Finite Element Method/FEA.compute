@@ -12,24 +12,16 @@ struct elementData{
     float4x4 areaWeightNormals;
 
     float4 elementIndices;
-    
-    // float4x4 jacobian1to1;
-    // float4x4 jacobian1to2;
-    // float4x4 jacobian1to3;
-    // float4x4 jacobian1to4;
+};
 
-    // float4x4 jacobian2to2;
-    // float4x4 jacobian2to3;
-    // float4x4 jacobian2to4;
-
-    // float4x4 jacobian3to3;
-    // float4x4 jacobian3to4;
-
-    // float4x4 jacobian4to4;
+struct CoordinateList{
+    float4x4 jacobian;
+    float row;
+    float col;
 };
 
 RWStructuredBuffer<elementData> dataBuffer; // Our read write structured buffer to store all the info we need
-
+RWStructuredBuffer<CoordinateList> KBuffer;
 
 float2x2 exclude(float3x3 input, int row, int col){
     float2x2 output;
@@ -261,7 +253,7 @@ void FEA(uint3 id: SV_DispatchThreadID){
     dataBuffer[id.x].elasticForceOnNode._m03_m13_m23 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m03_m13_m23));
 
     // Calculate the jacobians!!!
-    // 6 unique jacobians, 3x3
+    // 10 unique jacobians, 3x3
     // dataBuffer[id.x].areaWeightNormals._m00_m10_m20 // 1
     // dataBuffer[id.x].areaWeightNormals._m01_m11_m21 // 2
     // dataBuffer[id.x].areaWeightNormals._m02_m12_m22 // 3
@@ -282,96 +274,56 @@ void FEA(uint3 id: SV_DispatchThreadID){
 
     // Assign our jacobians to our stiffness matrix, will row compress 
     // 1 to 1
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[0]].A._m00_m10_m20 += j11._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[0]].A._m01_m11_m21 += j11._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[0]].A._m02_m12_m22 += j11._m02_m12_m22;
+    KBuffer[id.x*10].jacobian._m00_m10_m20 = j11._m00_m10_m20;
+    KBuffer[id.x*10].jacobian._m01_m11_m21 = j11._m01_m11_m21;
+    KBuffer[id.x*10].jacobian._m02_m12_m22 = j11._m02_m12_m22;
     
-    // // 1 to 2
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[1]].A._m00_m10_m20 += j12._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[1]].A._m01_m11_m21 += j12._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[1]].A._m02_m12_m22 += j12._m02_m12_m22;
+    // 1 to 2
+    KBuffer[id.x*10+1].jacobian._m00_m10_m20 = j12._m00_m10_m20;
+    KBuffer[id.x*10+1].jacobian._m01_m11_m21 = j12._m01_m11_m21;
+    KBuffer[id.x*10+1].jacobian._m02_m12_m22 = j12._m02_m12_m22;
     
-    // // 1 to 3
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[2]].A._m00_m10_m20 += j13._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[2]].A._m01_m11_m21 += j13._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[2]].A._m02_m12_m22 += j13._m02_m12_m22;
+    // 1 to 3
+    KBuffer[id.x*10+2].jacobian._m00_m10_m20 = j13._m00_m10_m20;
+    KBuffer[id.x*10+2].jacobian._m01_m11_m21 = j13._m01_m11_m21;
+    KBuffer[id.x*10+2].jacobian._m02_m12_m22 = j13._m02_m12_m22;
 
-    // // 1 to 4
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 += j14._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 += j14._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[0],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 += j14._m02_m12_m22;
+    // 1 to 4
+    KBuffer[id.x*10+3].jacobian._m00_m10_m20 = j14._m00_m10_m20;
+    KBuffer[id.x*10+3].jacobian._m01_m11_m21 = j14._m01_m11_m21;
+    KBuffer[id.x*10+3].jacobian._m02_m12_m22 = j14._m02_m12_m22;
 
-    // // 2 to 2
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[1]].A._m00_m12_m20 += j22._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[1]].A._m01_m11_m21 += j22._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[1]].A._m02_m12_m22 += j22._m02_m12_m22;
+    // 2 to 2
+    KBuffer[id.x*10+4].jacobian._m00_m12_m20 = j22._m00_m10_m20;
+    KBuffer[id.x*10+4].jacobian._m01_m11_m21 = j22._m01_m11_m21;
+    KBuffer[id.x*10+4].jacobian._m02_m12_m22 = j22._m02_m12_m22;
 
-    // // 2 to 3
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[2]].A._m00_m12_m20 += j23._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[2]].A._m01_m11_m21 += j23._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[2]].A._m02_m12_m22 += j23._m02_m12_m22;
+    // 2 to 3
+    KBuffer[id.x*10+5].jacobian._m00_m12_m20 += j23._m00_m10_m20;
+    KBuffer[id.x*10+5].jacobian._m01_m11_m21 += j23._m01_m11_m21;
+    KBuffer[id.x*10+5].jacobian._m02_m12_m22 += j23._m02_m12_m22;
 
-    // // 2 to 4
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 += j24._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 += j24._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[1],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 += j24._m02_m12_m22;
+    // 2 to 4
+    KBuffer[id.x*10+6].jacobian._m00_m10_m20 += j24._m00_m10_m20;
+    KBuffer[id.x*10+6].jacobian._m01_m11_m21 += j24._m01_m11_m21;
+    KBuffer[id.x*10+6].jacobian._m02_m12_m22 += j24._m02_m12_m22;
 
-    // // 3 to 3 
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[2]].A._m00_m10_m20 += j33._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[2]].A._m01_m11_m21 += j33._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[2]].A._m02_m12_m22 += j33._m02_m12_m22;
+    // 3 to 3 
+    KBuffer[id.x*10+7].jacobian._m00_m10_m20 += j33._m00_m10_m20;
+    KBuffer[id.x*10+7].jacobian._m01_m11_m21 += j33._m01_m11_m21;
+    KBuffer[id.x*10+7].jacobian._m02_m12_m22 += j33._m02_m12_m22;
     
-    // // 3 to 4
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 += j34._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 += j34._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[2],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 += j34._m02_m12_m22;
+    // 3 to 4
+    KBuffer[id.x*10+8].jacobian._m00_m10_m20 += j34._m00_m10_m20;
+    KBuffer[id.x*10+8].jacobian._m01_m11_m21 += j34._m01_m11_m21;
+    KBuffer[id.x*10+8].jacobian._m02_m12_m22 += j34._m02_m12_m22;
 
-    // // 4 to 4
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[3],dataBuffer[id.x].elementIndices[3]].A._m00_m10_m20 = j44._m00_m10_m20;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[3],dataBuffer[id.x].elementIndices[3]].A._m01_m11_m21 = j44._m01_m11_m21;
-    // stiffnessBuffer[dataBuffer[id.x].elementIndices[3],dataBuffer[id.x].elementIndices[3]].A._m02_m12_m22 = j44._m02_m12_m22;
+    // 4 to 4
+    KBuffer[id.x*10+9].jacobian._m00_m10_m20 = j44._m00_m10_m20;
+    KBuffer[id.x*10+9].jacobian._m01_m11_m21 = j44._m01_m11_m21;
+    KBuffer[id.x*10+9].jacobian._m02_m12_m22 = j44._m02_m12_m22;
 
     
-
-    // dataBuffer[id.x].jacobian1to1._m00_m10_m20 = j11._m00_m10_m20;
-    // dataBuffer[id.x].jacobian1to1._m01_m11_m21 = j11._m01_m11_m21;
-    // dataBuffer[id.x].jacobian1to1._m02_m12_m22 = j11._m02_m12_m22;
-    
-    // dataBuffer[id.x].jacobian1to2._m00_m10_m20 = j12._m00_m10_m20;
-    // dataBuffer[id.x].jacobian1to2._m01_m11_m21 = j12._m01_m11_m21;
-    // dataBuffer[id.x].jacobian1to2._m02_m12_m22 = j12._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian1to3._m00_m10_m20 = j13._m00_m10_m20;
-    // dataBuffer[id.x].jacobian1to3._m01_m11_m21 = j13._m01_m11_m21;
-    // dataBuffer[id.x].jacobian1to3._m02_m12_m22 = j13._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian1to4._m00_m10_m20 = j14._m00_m10_m20;
-    // dataBuffer[id.x].jacobian1to4._m01_m11_m21 = j14._m01_m11_m21;
-    // dataBuffer[id.x].jacobian1to4._m02_m12_m22 = j14._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian2to2._m00_m12_m20 = j22._m00_m10_m20;
-    // dataBuffer[id.x].jacobian2to2._m01_m11_m21 = j22._m01_m11_m21;
-    // dataBuffer[id.x].jacobian2to2._m02_m12_m22 = j22._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian2to3._m00_m12_m20 = j23._m00_m10_m20;
-    // dataBuffer[id.x].jacobian2to3._m01_m11_m21 = j23._m01_m11_m21;
-    // dataBuffer[id.x].jacobian2to3._m02_m12_m22 = j23._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian2to4._m00_m10_m20 = j24._m00_m10_m20;
-    // dataBuffer[id.x].jacobian2to4._m01_m11_m21 = j24._m01_m11_m21;
-    // dataBuffer[id.x].jacobian2to4._m02_m12_m22 = j24._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian3to3._m00_m10_m20 = j33._m00_m10_m20;
-    // dataBuffer[id.x].jacobian3to3._m01_m11_m21 = j33._m01_m11_m21;
-    // dataBuffer[id.x].jacobian3to3._m02_m12_m22 = j33._m02_m12_m22;
-    
-    // dataBuffer[id.x].jacobian3to4._m00_m10_m20 = j34._m00_m10_m20;
-    // dataBuffer[id.x].jacobian3to4._m01_m11_m21 = j34._m01_m11_m21;
-    // dataBuffer[id.x].jacobian3to4._m02_m12_m22 = j34._m02_m12_m22;
-
-    // dataBuffer[id.x].jacobian4to4._m00_m10_m20 = j44._m00_m10_m20;
-    // dataBuffer[id.x].jacobian4to4._m01_m11_m21 = j44._m01_m11_m21;
-    // dataBuffer[id.x].jacobian4to4._m02_m12_m22 = j44._m02_m12_m22;
 }
 // Can Have multiple kernel functions to a file
 
