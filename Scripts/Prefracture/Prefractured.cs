@@ -204,7 +204,7 @@ public class Prefractured : MonoBehaviour
 				before this is added to the position this difference vector would have to be rotated accordingly to take into account its actual position in the world space 
 				*/
 				if(clearDebris){
-					Destroy(frag,4);
+					Destroy(frag,1);
 				}
 			}
 			// Mesh mesh = GetComponent<MeshFilter>().mesh;

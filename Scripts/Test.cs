@@ -26,6 +26,7 @@ public class Test : MonoBehaviour {
 	int count = 0;
 	bool setup = false;
 	
+	float experimentTime = 10.0f;
 
     public void writeToFile(string txt){
         sw.Write(txt+" ");
@@ -35,20 +36,21 @@ public class Test : MonoBehaviour {
     public void newLine(){
         sw.Write("\n");
         sw.Flush();
-		mw.Write("\n");
-        mw.Flush();
+		// mw.Write("\n");
+        // mw.Flush();
     }
 
     void Start(){
-        sw = File.AppendText("time"+filename+".txt");
-		mw = File.AppendText("mem"+filename+".txt");
+        sw = File.AppendText(filename+".txt");
+		// mw = File.AppendText("mem"+filename+".txt");
     }
 
 	// Update is called once per frame
 	void Update () {	
 		if(count<100){
+			experimentTime += Time.deltaTime;
 			
-			if(Time.deltaTime%10 > 0 && !setup){
+			if(experimentTime > 5 && !setup){
 				newLine();
 				
 				subject = (GameObject)Instantiate<GameObject>(TestObjectPrefab);
@@ -63,12 +65,13 @@ public class Test : MonoBehaviour {
 				cannonBall.GetComponent<Rigidbody>().AddForce(
 					(subject.transform.position+new Vector3(0,0.5f,0)-cannonBall.transform.position).normalized*force, 
 					ForceMode.Impulse);
-				Destroy(cannonBall,3); // Destroy the cannonball after 5 seconds 
+				Destroy(cannonBall,3); 
+				experimentTime = 0;
 			}
 
 			writeToFile(Time.deltaTime.ToString());
-			mw.Write(Profiler.GetTotalAllocatedMemory()+" ");
-        	mw.Flush();
+			// mw.Write(Profiler.GetTotalAllocatedMemory()+" ");
+        	// mw.Flush();
 		}
 		if(subject == null && cannonBall == null){
 			setup = false;
