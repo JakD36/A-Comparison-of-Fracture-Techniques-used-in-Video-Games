@@ -5,9 +5,9 @@ using UnityEngine;
 
 
 /// <summary>
-///
+/// The Finite element Gameobject script
 /// <para>
-/// 
+/// Handles looping through the finite element simulation, running the conjugate gradient solver for each Fixed update 
 /// </para>
 /// </summary>
 public class FEM : MonoBehaviour {

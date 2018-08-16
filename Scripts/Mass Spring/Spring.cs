@@ -5,15 +5,15 @@ using System.IO;
 using System.Text.RegularExpressions;
 
 /// <summary>
-/// The pore spring object that attaches elements together.
+/// The spring object that attaches elements together.
 /// <para>
 /// Simulates an ideal spring that is between objects, has a stiffness, but does not take into account dampening
 /// </para>
 /// </summary>
-public class PoreSpring{
+public class Spring{
     private float stiffness; // The stiffness k of the spring, the force is calculated through F = kdx, where dx is the change from rest length
     private float restLength; // The rest length is the length at which the force applied is zero
-    private GameObject[] elements; // The edem Elements attached at either end of the spring
+    private GameObject[] elements; // The Elements attached at either end of the spring
 
     private bool broken = false;
 
@@ -26,7 +26,7 @@ public class PoreSpring{
     /// <param name="elementB">The second element attached to this spring</param>
     /// <param name="stiffness">The stiffness of the spring</param>
     /// </summary>
-    public PoreSpring(GameObject elementA, GameObject elementB, float stiffness){    
+    public Spring(GameObject elementA, GameObject elementB, float stiffness){    
         // Assign the elements to the spring
         elements = new GameObject[2];
         elements[0] = elementA;
@@ -59,8 +59,8 @@ public class PoreSpring{
         Vector3 forceOn1 = forceOn0*-1;
         
         // Tell each element the force it will have to apply
-        elements[0].GetComponent<EdemElement>().addPoreForce(forceOn0); 
-        elements[1].GetComponent<EdemElement>().addPoreForce(forceOn1);
+        elements[0].GetComponent<Element>().addSpringForce(forceOn0); 
+        elements[1].GetComponent<Element>().addSpringForce(forceOn1);
     }
 
     /// <summary>

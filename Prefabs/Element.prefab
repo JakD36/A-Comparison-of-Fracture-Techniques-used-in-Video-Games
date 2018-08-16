@@ -19,14 +19,14 @@ GameObject:
   serializedVersion: 5
   m_Component:
   - component: {fileID: 4873650098605158}
-  - component: {fileID: 114232707506855920}
   - component: {fileID: 33071991816456640}
   - component: {fileID: 23106374236092796}
   - component: {fileID: 54883967922933474}
   - component: {fileID: 135979380737014682}
   - component: {fileID: 64366034196027794}
+  - component: {fileID: 114049605870201254}
   m_Layer: 0
-  m_Name: EdemElement
+  m_Name: Element
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -115,7 +115,7 @@ MeshCollider:
   m_CookingOptions: 14
   m_SkinWidth: 0.01
   m_Mesh: {fileID: 0}
---- !u!114 &114232707506855920
+--- !u!114 &114049605870201254
 MonoBehaviour:
   m_ObjectHideFlags: 1
   m_PrefabParentObject: {fileID: 0}
@@ -123,13 +123,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1031424788843228}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 946217fcc05c74f2db8f26f7df5e65d9, type: 3}
+  m_Script: {fileID: 11500000, guid: 113aee69dd696409e8b24db357928ca9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  normalContactStiffness: 1
-  normalContactDampening: 0.5
-  tangentialContactDampening: 0.5
-  rayForceDirection: {x: 0, y: 0, z: 0}
 --- !u!135 &135979380737014682
 SphereCollider:
   m_ObjectHideFlags: 1

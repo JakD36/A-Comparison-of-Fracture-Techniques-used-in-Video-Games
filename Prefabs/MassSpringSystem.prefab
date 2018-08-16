@@ -68,7 +68,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   meshFile: vol/icoModerate198.vol
-  EdemElementPrefab: {fileID: 1031424788843228, guid: 79e106d8c77b6473ca2fb13f0617dedb,
+  ElementPrefab: {fileID: 1031424788843228, guid: 79e106d8c77b6473ca2fb13f0617dedb,
     type: 2}
   NumberOfCommonVertices: 2
   MaxSpringLengthRatio: 1.4

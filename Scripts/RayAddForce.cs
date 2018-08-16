@@ -20,7 +20,7 @@ public class RayAddForce : MonoBehaviour {
 			Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 			if (Physics.Raycast(ray, out hit,100)){
 				if(hit.rigidbody!=null){
-					hit.rigidbody.gameObject.GetComponent<EdemElement>().setRayForceDirection(hit.normal);
+					hit.rigidbody.gameObject.GetComponent<Element>().setRayForceDirection(hit.normal);
 					hit.rigidbody.gameObject.GetComponent<MeshRenderer>().material.color = Color.red;
 				}
 			}
@@ -28,10 +28,10 @@ public class RayAddForce : MonoBehaviour {
 		// Could do a check if they right click to remove the selection
 
 		if(Input.GetKey(KeyCode.W)){
-            EdemElement.addRayForce(-1f);
+            Element.addRayForce(-1f);
         }
         if(Input.GetKey(KeyCode.S)){
-			EdemElement.addRayForce(-1f);
+			Element.addRayForce(-1f);
         }
 	}
 }

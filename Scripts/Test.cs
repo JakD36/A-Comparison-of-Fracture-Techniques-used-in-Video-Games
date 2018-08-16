@@ -5,6 +5,14 @@ using UnityEngine.Profiling;
 using UnityEditor;
 using System.IO;
 
+/// <summary>
+/// The test GameObject, that controls the experiment
+/// <para>
+/// Handles the initialisation of the cannonball and an object of the tested method, fires the ball and repeats.
+/// Recording the time to render each frame as it goes.
+/// </para>
+/// </summary>
+
 public class Test : MonoBehaviour {
 
 	// Prefabs

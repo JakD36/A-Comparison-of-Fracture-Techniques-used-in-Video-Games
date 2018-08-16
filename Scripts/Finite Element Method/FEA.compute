@@ -1,10 +1,14 @@
 #pragma kernel FEA 
 #pragma kernel RowVectorMultiplication
+// Warning do not put comments alongside the kernel names
 
+
+// Constants 
 float mass;      
 float lambda;
 float mu;
 
+// Data structs for transfer between GPU and CPU
 struct elementData{
     float4x4 unDeformedPos;
     float4x4 deformedPos;
@@ -20,9 +24,13 @@ struct CoordinateList{
     float col;
 };
 
+
+// Buffers to hold data structs 
 RWStructuredBuffer<elementData> dataBuffer; // Our read write structured buffer to store all the info we need
 RWStructuredBuffer<CoordinateList> KBuffer;
 
+
+// Method to output a 2x2 matrix left when omitting the provided row and column from a given 3x3
 float2x2 exclude(float3x3 input, int row, int col){
     float2x2 output;
     for(int n = 0, N = 0; n < 2; n++, N++){
@@ -39,6 +47,7 @@ float2x2 exclude(float3x3 input, int row, int col){
     return output;
 }
 
+// Gets the column vector at the column index for a given matrix
 float3 getVector(float3x3 input, int col){
     float3 output;
     for(int n = 0; n < 3; n++){
@@ -47,6 +56,8 @@ float3 getVector(float3x3 input, int col){
     return output;
 }
 
+
+// Inverts a 3x3 matrix 
 float3x3 inverse(float3x3 input){
     float3x3 output;
     float det = determinant(input);
@@ -70,6 +81,7 @@ float3x3 inverse(float3x3 input){
     return output;
 }
 
+// Performs a QR decomposition of the matrix A, outputting the matrices Q and R
 void QRdecomp(float3x3 A: IN,
                   float3x3 Q: OUT,
                   float3x3 R: OUT){
@@ -98,6 +110,7 @@ void QRdecomp(float3x3 A: IN,
     R._m22 = dot(a3,Q._m02_m12_m22);
 }
 
+// Calculates the eigenvalues and eigenvectors for a the matrix input, using QR algorithm and QR decomposition 
 void calculateEigen(float3x3 input,float3x3 outEigenvalues, float3x3 outEigenvectors){
     float3x3 eigenvectors = {1,0,0,
                              0,1,0,
@@ -116,6 +129,7 @@ void calculateEigen(float3x3 input,float3x3 outEigenvalues, float3x3 outEigenvec
     outEigenvectors = eigenvectors;
 }
 
+// Performs the polar decomposition of input, allows for the removal of the rotation from deformation gradient
 void polarDecomp(float3x3 input, float3x3 U, float3x3 P){
     float3x3 eigenvalues;
     float3x3 eigenvectors; 
@@ -128,6 +142,7 @@ void polarDecomp(float3x3 input, float3x3 U, float3x3 P){
     U = mul(input,inverse(P));
 }
 
+// Sums all the elements along the diagonal of the matrix input
 float trace(float3x3 input){
     float sum = 0.0f;
     for(int n = 0; n < 3; n++){
@@ -137,7 +152,7 @@ float trace(float3x3 input){
 }
 
 
-
+// Performs the core of the finite element analysis calculations from calculating the strain to calculating the jacobians and adding them to a coordinate list
 [numthreads(64,1,1)]
 void FEA(uint3 id: SV_DispatchThreadID){ 
     
@@ -171,22 +186,22 @@ void FEA(uint3 id: SV_DispatchThreadID){
                    dataBuffer[id.x].deformedPos[2][3]-dataBuffer[id.x].deformedPos[2][0]}
                    };
 
-    float3x3 F = mul(Dx,beta);
+    float3x3 F = mul(Dx,beta); // The deformation gradient for this element
     float3x3 Q = {1,0,0,
                   0,1,0,
-                  0,0,1};
+                  0,0,1}; 
     float3x3 R;
-    polarDecomp(F,Q,R);
+    polarDecomp(F,Q,R); 
     float3x3 identity = {1,0,0,
                          0,1,0,
                          0,0,1};
-    F = mul(Q,transpose(F));
-    float3x3 corotationalStrain = 0.5f * (F + transpose(F)) - identity;
-    float3x3 elementStress = lambda * trace(corotationalStrain) * identity + 2 * mu*corotationalStrain;
+    F = mul(Q,transpose(F)); // Remove the rotation from the deformation gradient 
+    float3x3 corotationalStrain = 0.5f * (F + transpose(F)) - identity; // calculate the strain
+    float3x3 elementStress = lambda * trace(corotationalStrain) * identity + 2 * mu*corotationalStrain; // Calculate the stress
 
     
     
-
+    // To find the area weighted normal for each of the points 
     float3 midpoint = (dataBuffer[id.x].deformedPos._m00_m10_m20 + 
                       dataBuffer[id.x].deformedPos._m01_m11_m21 +
                       dataBuffer[id.x].deformedPos._m02_m12_m22 +
@@ -242,11 +257,12 @@ void FEA(uint3 id: SV_DispatchThreadID){
     dataBuffer[id.x].areaWeightNormals._m03_m13_m23 = area.w * dataBuffer[id.x].areaWeightNormals._m03_m13_m23;
 
     // TODO: Check they are outward!
-
     // need to check these are outward facing                                                             
     // if they are not multiply by -1 to flip direction.
 
-    // find elastic force on node!
+
+
+    // find elastic force on node! Add the rotation back by mutliplying by Q, the orthonormal component of F
     dataBuffer[id.x].elasticForceOnNode._m00_m10_m20 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m00_m10_m20));
     dataBuffer[id.x].elasticForceOnNode._m01_m11_m21 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m01_m11_m21));
     dataBuffer[id.x].elasticForceOnNode._m02_m12_m22 = mul(Q,mul(elementStress,dataBuffer[id.x].areaWeightNormals._m02_m12_m22));
@@ -272,7 +288,8 @@ void FEA(uint3 id: SV_DispatchThreadID){
 
     float3x3 j44 = -1 * mul(Q,mul(lambda * dot(dataBuffer[id.x].areaWeightNormals._m03_m13_m23,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) + mu * dot(dataBuffer[id.x].areaWeightNormals._m03_m13_m23,dataBuffer[id.x].areaWeightNormals._m03_m13_m23) * identity + mu * dot(dataBuffer[id.x].areaWeightNormals._m03_m13_m23,dataBuffer[id.x].areaWeightNormals._m03_m13_m23),transpose(Q)));
 
-    // Assign our jacobians to our stiffness matrix, will row compress 
+    // Assign our jacobians to our stiffness matrix, using a coordinate list, to be sorted later into compressed sparse row list
+    // Need to add the other 6 jacobians which are constructed from those already obtained J_{ij}=J_{ji}^T 
     // 1 to 1
     KBuffer[id.x*10].jacobian._m00_m10_m20 = j11._m00_m10_m20;
     KBuffer[id.x*10].jacobian._m01_m11_m21 = j11._m01_m11_m21;
