@@ -24,7 +24,7 @@ public class Prefractured : MonoBehaviour
 	public float breakForce;
 	
 	public bool clearDebris;
-
+	public Material fragMaterial;
 	/// <summary>
 	/// Use this for initialization
 	/// <para>
@@ -47,10 +47,10 @@ public class Prefractured : MonoBehaviour
     void Update()
     {
         // If we press space we will delete the current gameObject and create lots of little fragments
-        if (Input.GetKey(KeyCode.Space))
-        {
-			fracture();		
-        }
+        // if (Input.GetKey(KeyCode.Space))
+        // {
+		// 	fracture();		
+        // }
     }
 
 
@@ -129,7 +129,7 @@ public class Prefractured : MonoBehaviour
 				GameObject frag = new GameObject();
 				frag.AddComponent<MeshFilter>();
 				frag.AddComponent<MeshRenderer>();
-				frag.GetComponent<MeshRenderer>().material = new Material(Shader.Find("Diffuse")); // Add a material to make it pretty
+				frag.GetComponent<MeshRenderer>().material = fragMaterial;//new Material(Shader.Find("Blue")); // Add a material to make it pretty
 				frag.AddComponent<Rigidbody>();
 
 				Mesh fragMesh = frag.GetComponent<MeshFilter>().mesh;

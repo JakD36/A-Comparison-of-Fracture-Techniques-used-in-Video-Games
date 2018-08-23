@@ -72,5 +72,5 @@ MonoBehaviour:
     type: 2}
   NumberOfCommonVertices: 2
   MaxSpringLengthRatio: 1.4
-  poreStiffness: 140
-  clearDebris: 1
+  stiffness: 0
+  clearDebris: 0

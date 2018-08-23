@@ -18,6 +18,15 @@ public class CameraControl : MonoBehaviour {
 	public float angle = new float();
 	public float radius = new float();
 
+	// public GameObject CannonBallPrefab;
+
+	// // Variables
+	// public float force; // The force to fire the cannonball
+	// public float cannonBallMass; // The mass of the cannonballs when fired
+	// public float cannonBallRadius; // The size of the cannonballs
+	// public GameObject subject;
+	// GameObject cannonBall;
+
 	
 	
 	
@@ -31,11 +40,27 @@ public class CameraControl : MonoBehaviour {
 	void Start() {
 		camX = radius*Mathf.Sin(Mathf.Deg2Rad*angle);
 		camZ = radius*Mathf.Cos(Mathf.Deg2Rad*angle);
-		this.transform.position = new Vector3(camX,camY,camZ);
-		this.transform.LookAt(new Vector3());
+		this.transform.position = new Vector3(camX+3,camY,camZ);
+		this.transform.LookAt(new Vector3(3,0,0));
 	}
 
-	
+	void Update(){
+		// if(Input.GetKeyDown(KeyCode.Space)){
+		// 	cannonBall = (GameObject)Instantiate<GameObject>(CannonBallPrefab);
+				
+		// 		cannonBall.transform.position = new Vector3(-10,cannonBallRadius+0.3f,0);
+				
+		// 		cannonBall.GetComponent<Rigidbody>().mass = cannonBallMass;
+		// 		cannonBall.transform.localScale*=cannonBallRadius;
+		// 		cannonBall.GetComponent<SphereCollider>().radius = 0.5f; 
+		// 		cannonBall.GetComponent<Rigidbody>().AddForce(
+		// 			(subject.transform.position+new Vector3(0,0.5f,0)-cannonBall.transform.position).normalized*force, 
+		// 			ForceMode.Impulse);
+		// 		Destroy(cannonBall,3); 
+		// }
+	}
+
+
 	/// <summary>
 	/// Applies changes, after Update has been called on all objects
 	/// <para>
@@ -64,9 +89,9 @@ public class CameraControl : MonoBehaviour {
 		camZ = radius*Mathf.Cos(Mathf.Deg2Rad*angle); // Calculate the new position on the z-axis
 
 		
-		Vector3 desiredPosition = new Vector3(camX,camY,camZ);
+		Vector3 desiredPosition = new Vector3(camX+3,camY,camZ);
 		Vector3 smoothedPosition = Vector3.Lerp(transform.position,desiredPosition,smoothedSpeed);
 		this.transform.position = smoothedPosition; // Move the camera
-		this.transform.LookAt(new Vector3()); // Make sure looking at the centre of the scene
+		this.transform.LookAt(new Vector3(3,0,0)); // Make sure looking at the centre of the scene
 	}
 }
